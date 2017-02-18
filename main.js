@@ -129,7 +129,7 @@ function updateImage()
     let context = canvas.getContext("2d");
     image = context.createImageData(canvas.width, canvas.height);
     let t0 = performance.now();
-    let pixels = plotFill(image);
+    let pixels = plotDivide(image);
     let t1 = performance.now();
     context.putImageData(image, 0, 0);
     updateStatus(coords, image, pixels, t1 - t0);
@@ -232,6 +232,78 @@ function plotFill(image) {
             i++;
         }
     }
+
+    return pixels;
+}
+
+function plotDivide(image) {
+    let px;
+    let py;
+    let pw = image.width;
+    let ph = image.height;
+    let pixels = 0;
+
+    function pixel(px, py) {
+        let cx = complexCoordForPixelX(px);
+        let cy = complexCoordForPixelY(py);
+        let r = iterations(cx, cy, 512);
+        coloriseAndSetPixel(image, (px + py * pw) * 4, r);
+        pixels++;
+        return r;
+    }
+
+    function plotLineX(py, x0, x1) {
+        let first = pixel(x0, py);
+        let same = true;
+        for (let px = x0 + 1; px < x1; px++) {
+            let r = pixel(px, py);
+            same = same && r === first;
+        }
+        return same ? first : -1;
+    }
+
+    function plotLineY(px, y0, y1) {
+        let first = pixel(px, y0);
+        let same = true;
+        for (let py = y0 + 1; py < y1; py++) {
+            let r = pixel(px, py);
+            same = same && r === first;
+        }
+        return same ? first : -1;
+    }
+
+    function recurse(x0, y0, x1, y1) {
+        if (x1 <= x0 || y1 <= y0) {
+            alert("Bad pixel coordinates in plotDivide");
+            return;
+        }
+        if (x1 - x0 < 5 || y1 - y0 < 5) {
+            for (let py = y0; py < y1; py++)
+                plotLineX(py, x0, x1);
+            return;
+        }
+
+        let top =    plotLineX(y0,     x0,     x1 - 1);
+        let right =  plotLineY(x1 - 1, y0,     y1 - 1);
+        let bottom = plotLineX(y1 - 1, x0 + 1, x1);
+        let left =   plotLineY(x0,     y0 + 1, y1);
+
+        if (top !== -1 && top === right && right == bottom && bottom == left) {
+            for (let py = y0; py < y1; py++) {
+                for (let px = x0; px < x1; px++)
+                    coloriseAndSetPixel(image, (px + py * pw) * 4, top);
+            }
+        } else {
+            let mx = Math.round((x0 + x1) / 2);
+            let my = Math.round((y0 + y1) / 2);
+            recurse(x0 + 1, y0 + 1, mx,     my);
+            recurse(mx,     y0 + 1, x1 - 1, my);
+            recurse(x0 + 1, my,     mx,     y1 - 1);
+            recurse(mx,     my,     x1 - 1, y1 - 1);
+        }
+    }
+
+    recurse(0, 0, image.width, image.height);
 
     return pixels;
 }

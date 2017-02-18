@@ -92,11 +92,13 @@ function complexCoordForPixelY(py)
     return coords.centre_cy + coordsScale * py;
 }
 
-function zoomAt(x, y)
+function zoomAt(px, py)
 {
-    let cx = complexCoordForPixelX(x);
-    let cy = complexCoordForPixelY(y);
-    alert(`zoom ${cx}, ${cy}`);
+    coords.centre_cx = complexCoordForPixelX(px);
+    coords.centre_cy = complexCoordForPixelY(py);
+    coords.size_cy /= 2;
+    updateCoordsScale();
+    updateImage();
 }
 
 function updateImage()

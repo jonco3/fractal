@@ -2,6 +2,8 @@ let canvas;
 let canvasScale;
 let coords;
 let coordsScale;
+let centrePixelX;
+let centrePixelY;
 
 function init()
 {
@@ -88,9 +90,7 @@ function setCoords(centre_cx, centre_cy, size_cy)
     coords = {
         centre_cx: centre_cx,
         centre_cy: centre_cy,
-        size_cy: size_cy,
-        offset_px: 0,
-        offset_py: 0
+        size_cy: size_cy
     };
     updateCoordsScale();
     if (history.state)
@@ -102,18 +102,18 @@ function setCoords(centre_cx, centre_cy, size_cy)
 function updateCoordsScale()
 {
     coordsScale = coords.size_cy / canvas.height;
+    centrePixelX = Math.floor(canvas.width / 2);
+    centrePixelY = Math.floor(canvas.height / 2);
 }
 
 function complexCoordForPixelX(px)
 {
-    px += coords.offset_px - Math.floor(image.width / 2);
-    return coords.centre_cx + coordsScale * px;
+    return coords.centre_cx + coordsScale * (px - centrePixelX);
 }
 
 function complexCoordForPixelY(py)
 {
-    py += coords.offset_py - Math.floor(image.height / 2);
-    return coords.centre_cy + coordsScale * py;
+    return coords.centre_cy + coordsScale * (py - centrePixelY);
 }
 
 function zoomAt(px, py)

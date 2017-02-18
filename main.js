@@ -1,14 +1,21 @@
+let canvas;
+let canvasScale;
+let coords;
+let coordsScale;
+
 function init()
 {
+    canvas = document.getElementById("canvas");
     listenForResizeEvent();
+    listenForClickEvents();
+    initCoords();
     resizeCanvas();
 }
 
 function listenForResizeEvent()
 {
     let running = false;
-
-    function handleResize() {
+    window.addEventListener("resize", () => {
         if (running)
             return;
         requestAnimationFrame(
@@ -16,15 +23,23 @@ function listenForResizeEvent()
                 resizeCanvas();
                 running = false;
             });
-    }
+    });
+}
 
-    window.addEventListener("resize", handleResize);
+function listenForClickEvents()
+{
+    canvas.addEventListener("click", (event) => {
+        let rect = canvas.getBoundingClientRect();
+        let x = Math.round((event.clientX - rect.left) * canvasScale);
+        let y = Math.round((event.clientY - rect.top) * canvasScale);
+        if (event.detail == 2)
+            zoomAt(x, y);
+    });
 }
 
 function resizeCanvas()
 {
     let container = document.getElementById("container");
-    let canvas = document.getElementById("canvas");
     let width = container.offsetWidth;
     let height = width * 9/16;
 
@@ -37,32 +52,66 @@ function resizeCanvas()
         context.msBackingStorePixelRatio ||
         context.oBackingStorePixelRatio ||
         context.backingStorePixelRatio || 1;
-    let ratio = devicePixelRatio / backingStoreRatio;
+    canvasScale = devicePixelRatio / backingStoreRatio;
 
-    canvas.width = width * ratio;
-    canvas.height = height * ratio;
+    canvas.width = width * canvasScale;
+    canvas.height = height * canvasScale;
     canvas.style.width = width;
     canvas.style.height = height;
-    context.scale(ratio, ratio);
+    context.scale(canvasScale, canvasScale);
 
-    updateImage(canvas);
+    updateCoordsScale();
+    updateImage();
 }
 
-function updateImage(canvas)
+function initCoords()
 {
-    let context = canvas.getContext("2d");
-    image = context.createImageData(canvas.width, canvas.height);
-    let coords = {
+    coords = {
         centre_cx: -0.5,
         centre_cy: 0.0,
         size_cy: 2.0,
         offset_px: 0,
         offset_py: 0
     };
+}
+
+function updateCoordsScale()
+{
+    coordsScale = coords.size_cy / canvas.height;
+}
+
+function complexCoordForPixelX(px)
+{
+    px += coords.offset_px - Math.floor(image.width / 2);
+    return coords.centre_cx + coordsScale * px;
+}
+
+function complexCoordForPixelY(py)
+{
+    py += coords.offset_py - Math.floor(image.height / 2);
+    return coords.centre_cy + coordsScale * py;
+}
+
+function zoomAt(x, y)
+{
+    let cx = complexCoordForPixelX(x);
+    let cy = complexCoordForPixelY(y);
+    alert(`zoom ${cx}, ${cy}`);
+}
+
+function updateImage()
+{
+    let context = canvas.getContext("2d");
+    image = context.createImageData(canvas.width, canvas.height);
     let t0 = performance.now();
     let pixels = plotTo(image, coords);
     let t1 = performance.now();
     context.putImageData(image, 0, 0);
+    updateStatus(coords, image, pixels, t1 - t0);
+}
+
+function updateStatus(coords, image, pixels, time)
+{
     let status = document.getElementById("status");
     status.textContent =
         `Mandelbrot set ` +
@@ -70,26 +119,18 @@ function updateImage(canvas)
         `height ${coords.size_cy}, ` +
         `image size ${image.width} x ${image.height}, ` +
         `${100 * pixels / (image.width * image.height)}% of pixels plotted ` +
-        `in ${t1 - t0} mS`;
+        `in ${time} mS`;
 }
 
 function plotTo(image, coords)
 {
     let pw = image.width;
     let ph = image.height;
-    let cx = coords.centre_cx;
-    let cy = coords.centre_cy;
-    let ch = coords.size_cy;
-    let ox = coords.offset_px;
-    let oy = coords.offset_py;
     let i = 0;
-    let s = ch / ph;
-    ox -= Math.floor(pw / 2);
-    oy -= Math.floor(ph / 2);
     for (let py = 0; py < ph; py++) {
-        let y = cy + s * (py + oy);
+        let y = complexCoordForPixelY(py);
         for (let px = 0; px < pw; px++) {
-            let x = cx + s * (px + ox);
+            let x = complexCoordForPixelX(px);
             let r = iterations(x, y, 512);
             if (r === 0) {
                 image.data[i+0] = 0;

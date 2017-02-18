@@ -129,7 +129,7 @@ function updateImage()
     let context = canvas.getContext("2d");
     image = context.createImageData(canvas.width, canvas.height);
     let t0 = performance.now();
-    let pixels = plotTo(image, coords);
+    let pixels = plotFill(image);
     let t1 = performance.now();
     context.putImageData(image, 0, 0);
     updateStatus(coords, image, pixels, t1 - t0);
@@ -147,30 +147,107 @@ function updateStatus(coords, image, pixels, time)
         `in ${time} mS`;
 }
 
-function plotTo(image, coords)
+function plotAll(image)
 {
     let pw = image.width;
     let ph = image.height;
     let i = 0;
     for (let py = 0; py < ph; py++) {
-        let y = complexCoordForPixelY(py);
+        let cy = complexCoordForPixelY(py);
         for (let px = 0; px < pw; px++) {
-            let x = complexCoordForPixelX(px);
-            let r = iterations(x, y, 512);
-            if (r === 0) {
-                image.data[i+0] = 0;
-                image.data[i+1] = 0;
-                image.data[i+2] = 0;
-            } else {
-                image.data[i+0] = r % 255;
-                image.data[i+1] = (r + 80) % 255;
-                image.data[i+2] = (r + 160) % 255
-            }
-            image.data[i+3] = 255;
+            let cx = complexCoordForPixelX(px);
+            let r = iterations(cx, cy, 512);
+            coloriseAndSetPixel(image, i, r);
             i += 4;
         }
     }
     return pw * ph;
+}
+
+function plotFill(image) {
+    let px;
+    let py;
+    let pw = image.width;
+    let ph = image.height;
+
+    let stack = [];
+
+    function empty() {
+        return stack.length === 0;
+    }
+
+    function push(x, y) {
+        stack.push(x);
+        stack.push(y);
+    }
+
+    function pop() {
+        py = stack.pop();
+        px = stack.pop();
+    }
+
+    for (px = 0; px < pw; px++) {
+        push(px, 0);
+        push(px, ph - 1);
+    }
+    for (py = 1; py < ph - 1; py++) {
+        push(0, py);
+        push(pw - 1, py);
+    }
+
+    let pixels = 0;
+    let data = new Uint32Array(pw * ph);
+    while (!empty()) {
+        pop();
+        let i = px + py * pw;
+        if (data[i])
+            continue;
+
+        let cx = complexCoordForPixelX(px);
+        let cy = complexCoordForPixelY(py);
+        let r = iterations(cx, cy, 512);
+        data[i] = r + 1;
+        pixels++;
+
+        if (r === 0)
+            continue;
+
+        if (px > 0 && data[i - 1] === 0)
+            push(px - 1, py);
+        if (py > 0 && data[i - pw] === 0)
+            push(px, py - 1);
+        if (px < pw - 1 && data[i + 1] === 0)
+            push(px + 1, py);
+        if (py < ph - 1 && data[i + pw] === 0)
+            push(px, py + 1);
+    }
+
+    let i = 0;
+    for (py = 0; py < ph; py++) {
+        for (px = 0; px < pw; px++) {
+            let r = data[i];
+            if (r !== 0)
+                r--;
+            coloriseAndSetPixel(image, i * 4, r)
+            i++;
+        }
+    }
+
+    return pixels;
+}
+
+function coloriseAndSetPixel(image, i, r)
+{
+    if (r === 0) {
+        image.data[i + 0] = 0;
+        image.data[i + 1] = 0;
+        image.data[i + 2] = 0;
+    } else {
+        image.data[i + 0] = r % 255;
+        image.data[i + 1] = (r + 80) % 255;
+        image.data[i + 2] = (r + 160) % 255
+    }
+    image.data[i + 3] = 255;
 }
 
 function iterations(cx, cy, maxIterations)

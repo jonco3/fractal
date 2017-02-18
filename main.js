@@ -8,6 +8,7 @@ function init()
     canvas = document.getElementById("canvas");
     listenForResizeEvent();
     listenForClickEvents();
+    listenForPopStateEvents();
     initCoords();
     resizeCanvas();
 }
@@ -34,6 +35,16 @@ function listenForClickEvents()
         let y = Math.round((event.clientY - rect.top) * canvasScale);
         if (event.detail == 2)
             zoomAt(x, y);
+    });
+}
+
+function listenForPopStateEvents()
+{
+    window.addEventListener("popstate", (event) => {
+        alert("popstate " + JSON.stringify(event.state));
+        coords = event.state;
+        updateCoordsScale();
+        updateImage();
     });
 }
 
@@ -66,13 +77,24 @@ function resizeCanvas()
 
 function initCoords()
 {
+    setCoords(-0.5, 0.0, 2.0);
+    history.replaceState(coords, "");
+}
+
+function setCoords(centre_cx, centre_cy, size_cy)
+{
+    if (size_cy == 0) {
+        alert("Bad complex height");
+        return;
+    }
     coords = {
-        centre_cx: -0.5,
-        centre_cy: 0.0,
-        size_cy: 2.0,
+        centre_cx: centre_cx,
+        centre_cy: centre_cy,
+        size_cy: size_cy,
         offset_px: 0,
         offset_py: 0
     };
+    updateCoordsScale();
 }
 
 function updateCoordsScale()
@@ -94,10 +116,10 @@ function complexCoordForPixelY(py)
 
 function zoomAt(px, py)
 {
-    coords.centre_cx = complexCoordForPixelX(px);
-    coords.centre_cy = complexCoordForPixelY(py);
-    coords.size_cy /= 2;
-    updateCoordsScale();
+    setCoords(complexCoordForPixelX(px),
+              complexCoordForPixelY(py),
+              coords.size_cy / 2);
+    history.pushState(coords, "");
     updateImage();
 }
 

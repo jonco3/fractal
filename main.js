@@ -25,8 +25,31 @@ function resizeCanvas()
 {
     let container = document.getElementById("container");
     let canvas = document.getElementById("canvas");
-    canvas.width = container.offsetWidth
-    canvas.height = canvas.width * 9/16;
+    let width = container.offsetWidth;
+    let height = width * 9/16;
+
+    // Handle high DPI screens
+    let context = canvas.getContext("2d");
+    let devicePixelRatio = window.devicePixelRatio || 1;
+    let backingStoreRatio =
+        context.webkitBackingStorePixelRatio ||
+        context.mozBackingStorePixelRatio ||
+        context.msBackingStorePixelRatio ||
+        context.oBackingStorePixelRatio ||
+        context.backingStorePixelRatio || 1;
+    let ratio = devicePixelRatio / backingStoreRatio;
+
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    canvas.style.width = width;
+    canvas.style.height = height;
+    context.scale(ratio, ratio);
+
+    updateImage(canvas);
+}
+
+function updateImage(canvas)
+{
     let context = canvas.getContext("2d");
     image = context.createImageData(canvas.width, canvas.height);
     let coords = {
@@ -42,7 +65,7 @@ function resizeCanvas()
     context.putImageData(image, 0, 0);
     let status = document.getElementById("status");
     status.textContent =
-        `Mandelbrot set, ` +
+        `Mandelbrot set ` +
         `centered on (${coords.centre_cx}, ${coords.centre_cy}), ` +
         `height ${coords.size_cy}, ` +
         `image size ${image.width} x ${image.height}, ` +

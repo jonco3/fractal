@@ -41,7 +41,6 @@ function listenForClickEvents()
 function listenForPopStateEvents()
 {
     window.addEventListener("popstate", (event) => {
-        alert("popstate " + JSON.stringify(event.state));
         coords = event.state;
         updateCoordsScale();
         updateImage();
@@ -78,7 +77,6 @@ function resizeCanvas()
 function initCoords()
 {
     setCoords(-0.5, 0.0, 2.0);
-    history.replaceState(coords, "");
 }
 
 function setCoords(centre_cx, centre_cy, size_cy)
@@ -95,6 +93,10 @@ function setCoords(centre_cx, centre_cy, size_cy)
         offset_py: 0
     };
     updateCoordsScale();
+    if (history.state)
+        history.pushState(coords, "");
+    else
+        history.replaceState(coords, "");
 }
 
 function updateCoordsScale()
@@ -119,7 +121,6 @@ function zoomAt(px, py)
     setCoords(complexCoordForPixelX(px),
               complexCoordForPixelY(py),
               coords.size_cy / 2);
-    history.pushState(coords, "");
     updateImage();
 }
 

@@ -6,6 +6,17 @@
   </head>
   <body onload="init()">
     <div>
+      <form>
+        <label>
+          Plotter:
+          <select name="plotter" id="plotterChoice">
+            <option value="subdivide">Subdivide</option>
+            <option value="fill">Fill</option>
+            <option value="naive">Naive</option>
+          </select>
+        </label>
+        <input id="update" type="button" value="Update"></input>
+      </form>
       <p>Double-click to zoom, use the back button to go back</p>
     </div>
     <div id="container" width="100%">

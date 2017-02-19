@@ -1,26 +1,36 @@
+// Parameters
+let params = {}
+
+// Cached values
 let canvas;
 let canvasScale;
-let coords;
 let coordsScale;
 let centrePixelX;
 let centrePixelY;
 
 function assert(cond, message)
 {
-    if (!cond) {
-        let s = `Assertion failed: ${message}`;
-        alert(s);
-        throw s;
-    }
+    if (!cond)
+        error("Assertion failed: " + message);
+}
+
+function error(message)
+{
+    alert(message);
+    throw message;
 }
 
 function init()
 {
     canvas = document.getElementById("canvas");
     listenForResizeEvent();
-    listenForClickEvents();
+    listenForCanvasClickEvents();
     listenForPopStateEvents();
+    listenForUpdateClickEvents();
     initCoords();
+    initPlotter();
+    updateHistoryState();
+    updateParamForm();
     resizeCanvas();
 }
 
@@ -38,7 +48,7 @@ function listenForResizeEvent()
     });
 }
 
-function listenForClickEvents()
+function listenForCanvasClickEvents()
 {
     canvas.addEventListener("click", (event) => {
         let rect = canvas.getBoundingClientRect();
@@ -52,10 +62,28 @@ function listenForClickEvents()
 function listenForPopStateEvents()
 {
     window.addEventListener("popstate", (event) => {
-        coords = event.state;
+        params = event.state;
+        updateParamForm();
         updateCoordsScale();
         updateImage();
     });
+}
+
+function listenForUpdateClickEvents()
+{
+    let button = document.getElementById("update");
+    let plotterChoice = document.getElementById("plotterChoice");
+    button.addEventListener("click", (event) => {
+        params.plotter = plotterChoice.value;
+        updateHistoryState();
+        updateImage();
+    });
+}
+
+function updateParamForm()
+{
+    let plotterChoice = document.getElementById("plotterChoice");
+    plotterChoice.value = params.plotter;
 }
 
 function resizeCanvas()
@@ -93,40 +121,45 @@ function initCoords()
 function setCoords(centre_cx, centre_cy, size_cy)
 {
     assert(size_cy !== 0, "Bad complex height");
-    coords = {
+    params.coords = {
         centre_cx: centre_cx,
         centre_cy: centre_cy,
         size_cy: size_cy
     };
     updateCoordsScale();
+}
+
+function updateHistoryState()
+{
     if (history.state)
-        history.pushState(coords, "");
+        history.pushState(params, "");
     else
-        history.replaceState(coords, "");
+        history.replaceState(params, "");
 }
 
 function updateCoordsScale()
 {
-    coordsScale = coords.size_cy / canvas.height;
+    coordsScale = params.coords.size_cy / canvas.height;
     centrePixelX = Math.floor(canvas.width / 2);
     centrePixelY = Math.floor(canvas.height / 2);
 }
 
 function complexCoordForPixelX(px)
 {
-    return coords.centre_cx + coordsScale * (px - centrePixelX);
+    return params.coords.centre_cx + coordsScale * (px - centrePixelX);
 }
 
 function complexCoordForPixelY(py)
 {
-    return coords.centre_cy + coordsScale * (py - centrePixelY);
+    return params.coords.centre_cy + coordsScale * (py - centrePixelY);
 }
 
 function zoomAt(px, py)
 {
     setCoords(complexCoordForPixelX(px),
               complexCoordForPixelY(py),
-              coords.size_cy / 2);
+              params.coords.size_cy / 2);
+    updateHistoryState();
     updateImage();
 }
 
@@ -135,29 +168,30 @@ function updateImage()
     let context = canvas.getContext("2d");
     image = context.createImageData(canvas.width, canvas.height);
     let t0 = performance.now();
-    let pixels = plotDivide(image);
+    let pixels = plotterFunc()(image);
     let t1 = performance.now();
     context.putImageData(image, 0, 0);
-    updateStatus(coords, image, pixels, t1 - t0);
+    updateStatus(pixels, t1 - t0);
 }
 
-function updateStatus(coords, image, pixels, time)
+function updateStatus(pixels, time)
 {
     let elems = [];
 
     elems.push(`Mandelbrot set`)
 
-    let cx = coords.centre_cx.toPrecision(4);
-    let cy = coords.centre_cy.toPrecision(4);
+    let cx = params.coords.centre_cx.toPrecision(4);
+    let cy = params.coords.centre_cy.toPrecision(4);
     elems.push(`centered on (${cx}, ${cy}),`)
 
-    let ch = coords.size_cy.toPrecision(4);
+    let ch = params.coords.size_cy.toPrecision(4);
     elems.push(`height ${ch},`);
 
-    elems.push(`image size ${image.width} x ${image.height},`);
+    let pw = canvas.width;
+    let ph = canvas.height;
+    elems.push(`image size ${pw} x ${ph},`);
 
-    let totalPixels = image.width * image.height;
-    let plotted = (100 * pixels / totalPixels).toPrecision(2);
+    let plotted = (100 * pixels / (pw * ph)).toPrecision(2);
     elems.push(`${plotted}% of pixels plotted`);
 
     let ms = time.toPrecision(3);
@@ -165,6 +199,30 @@ function updateStatus(coords, image, pixels, time)
 
     let status = document.getElementById("status");
     status.textContent = elems.join(" ");
+}
+
+function initPlotter()
+{
+    setPlotter("subdivide");
+}
+
+function setPlotter(name)
+{
+    params.plotter = name;
+}
+
+function plotterFunc()
+{
+    switch (params.plotter) {
+    case "subdivide":
+        return plotDivide;
+    case "fill":
+        return plotFill;
+    case "naive":
+        return plotAll;
+    default:
+        error("Unknown plotter: " + params.plotter);
+    }
 }
 
 function plotAll(image)

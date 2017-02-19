@@ -5,6 +5,15 @@ let coordsScale;
 let centrePixelX;
 let centrePixelY;
 
+function assert(cond, message)
+{
+    if (!cond) {
+        let s = `Assertion failed: ${message}`;
+        alert(s);
+        throw s;
+    }
+}
+
 function init()
 {
     canvas = document.getElementById("canvas");
@@ -83,10 +92,7 @@ function initCoords()
 
 function setCoords(centre_cx, centre_cy, size_cy)
 {
-    if (size_cy == 0) {
-        alert("Bad complex height");
-        return;
-    }
+    assert(size_cy !== 0, "Bad complex height");
     coords = {
         centre_cx: centre_cx,
         centre_cy: centre_cy,
@@ -291,10 +297,8 @@ function plotDivide(image) {
     }
 
     function recurse(x0, y0, x1, y1) {
-        if (x1 <= x0 || y1 <= y0) {
-            alert("Bad pixel coordinates in plotDivide");
-            return;
-        }
+        assert(x1 > x0 && y1 > y0, "Bad pixel coordinates");
+
         if (x1 - x0 < 5 || y1 - y0 < 5) {
             for (let py = y0; py < y1; py++)
                 plotLineX(py, x0, x1);

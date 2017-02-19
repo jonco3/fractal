@@ -5,6 +5,7 @@ let params = {
         centre_cy: 0.0,
         size_cy: 2.0
     },
+    maxIterations: 512,
     plotter: "subdivide"
 };
 
@@ -231,7 +232,7 @@ function plotAll(pw, ph, buffer)
         let cy = complexCoordForPixelY(py);
         for (let px = 0; px < pw; px++) {
             let cx = complexCoordForPixelX(px);
-            buffer[i++] = iterations(cx, cy, 512);
+            buffer[i++] = iterations(cx, cy);
         }
     }
     return pw * ph;
@@ -275,7 +276,7 @@ function plotFill(pw, ph, buffer) {
 
         let cx = complexCoordForPixelX(px);
         let cy = complexCoordForPixelY(py);
-        let r = iterations(cx, cy, 512);
+        let r = iterations(cx, cy);
         buffer[i] = r;
         pixels++;
 
@@ -301,7 +302,7 @@ function plotDivide(pw, ph, buffer) {
     let pixels = 0;
 
     function plotPixel(px, py, cx, cy) {
-        let r = iterations(cx, cy, 512);
+        let r = iterations(cx, cy);
         buffer[px + py * pw] = r;
         pixels++;
         return r;
@@ -397,12 +398,12 @@ function colorisePixel(imageData, i, r)
     imageData[i + 3] = 255;
 }
 
-function iterations(cx, cy, maxIterations)
+function iterations(cx, cy)
 {
     let zx = cx;
     let zy = cy;
     let i = 2;
-    while (i < maxIterations) {
+    while (i < params.maxIterations) {
         let xx = zx * zx;
         let yy = zy * zy;
         if (xx + yy >= 4)

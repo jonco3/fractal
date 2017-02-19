@@ -168,7 +168,10 @@ function updateImage()
     let context = canvas.getContext("2d");
     image = context.createImageData(canvas.width, canvas.height);
     let t0 = performance.now();
-    let pixels = plotterFunc()(image);
+    let buffer = new Uint32Array(image.data.buffer);
+    let plot = plotterFunc();
+    let pixels = plot(image.width, image.height, buffer);
+    coloriseBuffer(image.data, buffer);
     let t1 = performance.now();
     context.putImageData(image, 0, 0);
     updateStatus(pixels, t1 - t0);
@@ -225,28 +228,22 @@ function plotterFunc()
     }
 }
 
-function plotAll(image)
+function plotAll(pw, ph, buffer)
 {
-    let pw = image.width;
-    let ph = image.height;
     let i = 0;
     for (let py = 0; py < ph; py++) {
         let cy = complexCoordForPixelY(py);
         for (let px = 0; px < pw; px++) {
             let cx = complexCoordForPixelX(px);
-            let r = iterations(cx, cy, 512);
-            coloriseAndSetPixel(image, i, r);
-            i += 4;
+            buffer[i++] = iterations(cx, cy, 512);
         }
     }
     return pw * ph;
 }
 
-function plotFill(image) {
+function plotFill(pw, ph, buffer) {
     let px;
     let py;
-    let pw = image.width;
-    let ph = image.height;
 
     let stack = [];
 
@@ -274,56 +271,42 @@ function plotFill(image) {
     }
 
     let pixels = 0;
-    let data = new Uint32Array(pw * ph);
     while (!empty()) {
         pop();
         let i = px + py * pw;
-        if (data[i])
+        if (buffer[i])
             continue;
 
         let cx = complexCoordForPixelX(px);
         let cy = complexCoordForPixelY(py);
         let r = iterations(cx, cy, 512);
-        data[i] = r + 1;
+        buffer[i] = r;
         pixels++;
 
-        if (r === 0)
+        if (r === 1)
             continue;
 
-        if (px > 0 && data[i - 1] === 0)
+        if (px > 0 && buffer[i - 1] === 0)
             push(px - 1, py);
-        if (py > 0 && data[i - pw] === 0)
+        if (py > 0 && buffer[i - pw] === 0)
             push(px, py - 1);
-        if (px < pw - 1 && data[i + 1] === 0)
+        if (px < pw - 1 && buffer[i + 1] === 0)
             push(px + 1, py);
-        if (py < ph - 1 && data[i + pw] === 0)
+        if (py < ph - 1 && buffer[i + pw] === 0)
             push(px, py + 1);
-    }
-
-    let i = 0;
-    for (py = 0; py < ph; py++) {
-        for (px = 0; px < pw; px++) {
-            let r = data[i];
-            if (r !== 0)
-                r--;
-            coloriseAndSetPixel(image, i * 4, r)
-            i++;
-        }
     }
 
     return pixels;
 }
 
-function plotDivide(image) {
+function plotDivide(pw, ph, buffer) {
     let px;
     let py;
-    let pw = image.width;
-    let ph = image.height;
     let pixels = 0;
 
     function plotPixel(px, py, cx, cy) {
         let r = iterations(cx, cy, 512);
-        coloriseAndSetPixel(image, (px + py * pw) * 4, r);
+        buffer[px + py * pw] = r;
         pixels++;
         return r;
     }
@@ -354,12 +337,23 @@ function plotDivide(image) {
         return same ? first : -1;
     }
 
+    function plotArea(x0, y0, x1, y1) {
+        for (let py = y0; py < y1; py++)
+            plotLineX(py, x0, x1);
+    }
+
+    function fillArea(x0, y0, x1, y1, r) {
+        for (let py = y0; py < y1; py++) {
+            for (let px = x0; px < x1; px++)
+                buffer[px + py * pw] = r;
+        }
+    }
+
     function recurse(x0, y0, x1, y1) {
         assert(x1 > x0 && y1 > y0, "Bad pixel coordinates");
 
         if (x1 - x0 < 5 || y1 - y0 < 5) {
-            for (let py = y0; py < y1; py++)
-                plotLineX(py, x0, x1);
+            plotArea(x0, y0, x1, y1);
             return;
         }
 
@@ -369,10 +363,7 @@ function plotDivide(image) {
         let left =   plotLineY(x0,     y0 + 1, y1);
 
         if (top !== -1 && top === right && right == bottom && bottom == left) {
-            for (let py = y0; py < y1; py++) {
-                for (let px = x0; px < x1; px++)
-                    coloriseAndSetPixel(image, (px + py * pw) * 4, top);
-            }
+            fillArea(x0, y0, x1, y1, top);
         } else {
             let mx = Math.round((x0 + x1) / 2);
             let my = Math.round((y0 + y1) / 2);
@@ -383,30 +374,38 @@ function plotDivide(image) {
         }
     }
 
-    recurse(0, 0, image.width, image.height);
+    recurse(0, 0, pw, ph);
 
     return pixels;
 }
 
-function coloriseAndSetPixel(image, i, r)
+function coloriseBuffer(imageData, buffer)
 {
-    if (r === 0) {
-        image.data[i + 0] = 0;
-        image.data[i + 1] = 0;
-        image.data[i + 2] = 0;
-    } else {
-        image.data[i + 0] = r % 255;
-        image.data[i + 1] = (r + 80) % 255;
-        image.data[i + 2] = (r + 160) % 255
+    for (let i = 0; i < buffer.length; i++) {
+        r = buffer[i];
+        colorisePixel(imageData, i * 4, r);
     }
-    image.data[i + 3] = 255;
+}
+
+function colorisePixel(imageData, i, r)
+{
+    if (r <= 1) {
+        imageData[i + 0] = 0;
+        imageData[i + 1] = 0;
+        imageData[i + 2] = 0;
+    } else {
+        imageData[i + 0] = r % 255;
+        imageData[i + 1] = (r + 80) % 255;
+        imageData[i + 2] = (r + 160) % 255
+    }
+    imageData[i + 3] = 255;
 }
 
 function iterations(cx, cy, maxIterations)
 {
     let zx = cx;
     let zy = cy;
-    let i = 1;
+    let i = 2;
     while (i < maxIterations) {
         let xx = zx * zx;
         let yy = zy * zy;
@@ -418,5 +417,5 @@ function iterations(cx, cy, maxIterations)
         i++;
     }
 
-    return 0;
+    return 1;
 }

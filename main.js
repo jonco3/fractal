@@ -257,9 +257,7 @@ function plotDivide(image) {
     let ph = image.height;
     let pixels = 0;
 
-    function pixel(px, py) {
-        let cx = complexCoordForPixelX(px);
-        let cy = complexCoordForPixelY(py);
+    function plotPixel(px, py, cx, cy) {
         let r = iterations(cx, cy, 512);
         coloriseAndSetPixel(image, (px + py * pw) * 4, r);
         pixels++;
@@ -267,20 +265,26 @@ function plotDivide(image) {
     }
 
     function plotLineX(py, x0, x1) {
-        let first = pixel(x0, py);
+        let cx = complexCoordForPixelX(x0);
+        let cy = complexCoordForPixelY(py);
+        let first = plotPixel(x0, py, cx, cy);
         let same = true;
         for (let px = x0 + 1; px < x1; px++) {
-            let r = pixel(px, py);
+            cx = complexCoordForPixelX(px);
+            let r = plotPixel(px, py, cx, cy);
             same = same && r === first;
         }
         return same ? first : -1;
     }
 
     function plotLineY(px, y0, y1) {
-        let first = pixel(px, y0);
+        let cx = complexCoordForPixelX(px);
+        let cy = complexCoordForPixelY(y0);
+        let first = plotPixel(px, y0, cx, cy);
         let same = true;
         for (let py = y0 + 1; py < y1; py++) {
-            let r = pixel(px, py);
+            cy = complexCoordForPixelY(py);
+            let r = plotPixel(px, py, cx, cy);
             same = same && r === first;
         }
         return same ? first : -1;

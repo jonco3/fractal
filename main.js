@@ -363,7 +363,7 @@ function plotDivide(pw, ph, buffer) {
         let left =   plotLineY(x0,     y0 + 1, y1);
 
         if (top !== -1 && top === right && right == bottom && bottom == left) {
-            fillArea(x0, y0, x1, y1, top);
+            fillArea(x0 + 1, y0 + 1, x1 - 1 , y1 - 1, top);
         } else {
             let mx = Math.round((x0 + x1) / 2);
             let my = Math.round((y0 + y1) / 2);

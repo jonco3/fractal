@@ -12,9 +12,11 @@ let params = {
 // Cached values
 let canvas;
 let canvasScale;
-let coordsScale;
-let centrePixelX;
-let centrePixelY;
+
+let worker;
+let workerBusy;
+
+let startTime;
 
 function assert(cond, message)
 {
@@ -38,6 +40,7 @@ function init()
     updateCoordsScale();
     updateHistoryState();
     updateParamForm();
+    createWorker();
     resizeCanvas();
 }
 
@@ -72,7 +75,7 @@ function listenForPopStateEvents()
         params = event.state;
         updateParamForm();
         updateCoordsScale();
-        updateImage();
+        plotImage();
     });
 }
 
@@ -83,7 +86,7 @@ function listenForUpdateClickEvents()
     button.addEventListener("click", (event) => {
         params.plotter = plotterChoice.value;
         updateHistoryState();
-        updateImage();
+        plotImage();
     });
 }
 
@@ -91,6 +94,52 @@ function updateParamForm()
 {
     let plotterChoice = document.getElementById("plotterChoice");
     plotterChoice.value = params.plotter;
+}
+
+function createWorker()
+{
+    if (!window.Worker)
+        error("Requires workers -- please upgrade your browser");
+
+    workerBusy = false;
+    worker = new Worker("worker.js");
+
+    var testBuffer = new ArrayBuffer(1);
+    worker.postMessage(["test", testBuffer], [testBuffer]);
+    if (testBuffer.byteLength)
+        error("Requires Transferables -- please upgrade your browser");
+
+    worker.onmessage = (event) => {
+        assert(workerBusy, "Worker not running");
+        workerBusy = false;
+        switch(event.data[0]) {
+        case "error":
+            alert(event.data[1]);
+            break;
+        case "plotImage":
+            assert(event.data.length === 3, "Bad response from plotImage");
+            plotImageFinished(event.data[1], event.data[2]);
+            break;
+        default:
+            error("Unrecognised reply from worker: " +
+                  JSON.stringify(event.data));
+        }
+    };
+}
+
+function plotImageOnWorker(params, pw, ph, buffer)
+{
+    assert(!workerBusy, "Worker already running");
+    workerBusy = true;
+    worker.postMessage(["plotImage", params, pw, ph]);
+}
+
+function maybeCancelWorker()
+{
+    if (workerBusy) {
+        worker.terminate();
+        createWorker();
+    }
 }
 
 function resizeCanvas()
@@ -117,7 +166,7 @@ function resizeCanvas()
     context.scale(canvasScale, canvasScale);
 
     updateCoordsScale();
-    updateImage();
+    plotImage();
 }
 
 function setCoords(centre_cx, centre_cy, size_cy)
@@ -162,24 +211,42 @@ function zoomAt(px, py)
               complexCoordForPixelY(py),
               params.coords.size_cy / 2);
     updateHistoryState();
-    updateImage();
+    plotImage();
 }
 
-function updateImage()
+function plotImage()
 {
-    let context = canvas.getContext("2d");
-    image = context.createImageData(canvas.width, canvas.height);
-    let t0 = performance.now();
-    let buffer = new Uint32Array(image.data.buffer);
-    let plot = plotterFunc();
-    let pixels = plot(image.width, image.height, buffer);
-    coloriseBuffer(image.data, buffer);
-    let t1 = performance.now();
-    context.putImageData(image, 0, 0);
-    updateStatus(pixels, t1 - t0);
+    startTime = performance.now();
+    maybeCancelWorker();
+    setStatusPlotting();
+    plotImageOnWorker(params, canvas.width, canvas.height);
 }
 
-function updateStatus(pixels, time)
+function plotImageFinished(arrayBuffer, pixels)
+{
+    let buffer = new Uint32Array(arrayBuffer);
+    let pw = canvas.width;
+    let ph = canvas.height;
+    if (buffer.length !== pw * ph) {
+        // It's possible we got resized while the worker was plotting.
+        return;
+    }
+
+    let context = canvas.getContext("2d");
+    let image = context.createImageData(canvas.width, canvas.height);
+    coloriseBuffer(image.data, buffer);
+    let endTime = performance.now();
+    context.putImageData(image, 0, 0);
+    setStatusFinished(pixels, endTime - startTime);
+}
+
+function setStatusPlotting()
+{
+    let status = document.getElementById("status");
+    status.textContent = "Plotting...";
+}
+
+function setStatusFinished(pixels, time)
 {
     let elems = [];
 
@@ -198,7 +265,7 @@ function updateStatus(pixels, time)
     let ph = canvas.height;
     elems.push(`image size ${pw} x ${ph},`);
 
-    let plotted = (100 * pixels / (pw * ph)).toPrecision(2);
+    let plotted = (100 * pixels / (pw * ph)).toPrecision(3);
     elems.push(`${plotted}% of pixels calculated`);
 
     let ms = time.toPrecision(3);
@@ -211,177 +278,6 @@ function updateStatus(pixels, time)
 function setPlotter(name)
 {
     params.plotter = name;
-}
-
-function plotterFunc()
-{
-    switch (params.plotter) {
-    case "subdivide":
-        return plotDivide;
-    case "fill":
-        return plotFill;
-    case "naive":
-        return plotAll;
-    default:
-        error("Unknown plotter: " + params.plotter);
-    }
-}
-
-function plotAll(pw, ph, buffer)
-{
-    let i = 0;
-    for (let py = 0; py < ph; py++) {
-        let cy = complexCoordForPixelY(py);
-        for (let px = 0; px < pw; px++) {
-            let cx = complexCoordForPixelX(px);
-            buffer[i++] = iterations(cx, cy);
-        }
-    }
-    return pw * ph;
-}
-
-function plotFill(pw, ph, buffer) {
-    let px;
-    let py;
-
-    let stack = [];
-
-    function empty() {
-        return stack.length === 0;
-    }
-
-    function push(x, y) {
-        stack.push(x);
-        stack.push(y);
-    }
-
-    function pop() {
-        py = stack.pop();
-        px = stack.pop();
-    }
-
-    for (px = 0; px < pw; px++) {
-        push(px, 0);
-        push(px, ph - 1);
-    }
-    for (py = 1; py < ph - 1; py++) {
-        push(0, py);
-        push(pw - 1, py);
-    }
-
-    let pixels = 0;
-    while (!empty()) {
-        pop();
-        let i = px + py * pw;
-        if (buffer[i])
-            continue;
-
-        let cx = complexCoordForPixelX(px);
-        let cy = complexCoordForPixelY(py);
-        let r = iterations(cx, cy);
-        buffer[i] = r;
-        pixels++;
-
-        if (r === 1)
-            continue;
-
-        if (px > 0 && buffer[i - 1] === 0)
-            push(px - 1, py);
-        if (py > 0 && buffer[i - pw] === 0)
-            push(px, py - 1);
-        if (px < pw - 1 && buffer[i + 1] === 0)
-            push(px + 1, py);
-        if (py < ph - 1 && buffer[i + pw] === 0)
-            push(px, py + 1);
-    }
-
-    return pixels;
-}
-
-function plotDivide(pw, ph, buffer) {
-    let px;
-    let py;
-    let pixels = 0;
-
-    function maybePlotPixel(px, py, cx, cy) {
-        let i = px + py * pw;
-        let r = buffer[i];
-        if (!r) {
-            r = iterations(cx, cy);
-            buffer[i] = r;
-        }
-        pixels++;
-        return r;
-    }
-
-    function plotLineX(py, x0, x1) {
-        let cx = complexCoordForPixelX(x0);
-        let cy = complexCoordForPixelY(py);
-        let first = maybePlotPixel(x0, py, cx, cy);
-        let same = true;
-        for (let px = x0 + 1; px < x1; px++) {
-            cx = complexCoordForPixelX(px);
-            let r = maybePlotPixel(px, py, cx, cy);
-            same = same && r === first;
-        }
-        return same ? first : -1;
-    }
-
-    function plotLineY(px, y0, y1) {
-        let cx = complexCoordForPixelX(px);
-        let cy = complexCoordForPixelY(y0);
-        let first = maybePlotPixel(px, y0, cx, cy);
-        let same = true;
-        for (let py = y0 + 1; py < y1; py++) {
-            cy = complexCoordForPixelY(py);
-            let r = maybePlotPixel(px, py, cx, cy);
-            same = same && r === first;
-        }
-        return same ? first : -1;
-    }
-
-    function plotArea(x0, y0, x1, y1) {
-        for (let py = y0; py < y1; py++)
-            plotLineX(py, x0, x1);
-    }
-
-    function fillArea(x0, y0, x1, y1, r) {
-        for (let py = y0; py < y1; py++) {
-            let i = x0 + py * pw;
-            for (let px = x0; px < x1; px++) {
-                buffer[i++] = r;
-            }
-        }
-    }
-
-    function recurse(x0, y0, x1, y1) {
-        assert(x1 > x0 && y1 > y0, "Bad pixel coordinates");
-
-        if (x1 - x0 < 5 || y1 - y0 < 5) {
-            plotArea(x0, y0, x1, y1);
-            return;
-        }
-
-        let top =    plotLineX(y0,     x0,     x1 - 1);
-        let right =  plotLineY(x1 - 1, y0,     y1 - 1);
-        let bottom = plotLineX(y1 - 1, x0 + 1, x1);
-        let left =   plotLineY(x0,     y0 + 1, y1);
-
-        if (top !== -1 && top === right && right == bottom && bottom == left) {
-            fillArea(x0 + 1, y0 + 1, x1 - 1 , y1 - 1, top);
-        } else {
-            let mx = Math.round((x0 + x1) / 2);
-            let my = Math.round((y0 + y1) / 2);
-            recurse(x0, y0, mx, my);
-            recurse(mx, y0, x1, my);
-            recurse(x0, my, mx, y1);
-            recurse(mx, my, x1, y1);
-        }
-    }
-
-    recurse(0, 0, pw, ph);
-
-    return pixels;
 }
 
 function coloriseBuffer(imageData, buffer)
@@ -404,23 +300,4 @@ function colorisePixel(imageData, i, r)
         imageData[i + 2] = (r + 160) % 255
     }
     imageData[i + 3] = 255;
-}
-
-function iterations(cx, cy)
-{
-    let zx = cx;
-    let zy = cy;
-    let i = 2;
-    while (i < params.maxIterations) {
-        let xx = zx * zx;
-        let yy = zy * zy;
-        if (xx + yy >= 4)
-            return i;
-
-        zy = 2 * zx * zy + cy;
-        zx = xx - yy + cx;
-        i++;
-    }
-
-    return 1;
 }

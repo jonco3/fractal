@@ -199,7 +199,7 @@ function updateStatus(pixels, time)
     elems.push(`image size ${pw} x ${ph},`);
 
     let plotted = (100 * pixels / (pw * ph)).toPrecision(2);
-    elems.push(`${plotted}% of pixels plotted`);
+    elems.push(`${plotted}% of pixels calculated`);
 
     let ms = time.toPrecision(3);
     elems.push(`in ${ms} mS`);
@@ -303,9 +303,13 @@ function plotDivide(pw, ph, buffer) {
     let py;
     let pixels = 0;
 
-    function plotPixel(px, py, cx, cy) {
-        let r = iterations(cx, cy);
-        buffer[px + py * pw] = r;
+    function maybePlotPixel(px, py, cx, cy) {
+        let i = px + py * pw;
+        let r = buffer[i];
+        if (!r) {
+            r = iterations(cx, cy);
+            buffer[i] = r;
+        }
         pixels++;
         return r;
     }
@@ -313,11 +317,11 @@ function plotDivide(pw, ph, buffer) {
     function plotLineX(py, x0, x1) {
         let cx = complexCoordForPixelX(x0);
         let cy = complexCoordForPixelY(py);
-        let first = plotPixel(x0, py, cx, cy);
+        let first = maybePlotPixel(x0, py, cx, cy);
         let same = true;
         for (let px = x0 + 1; px < x1; px++) {
             cx = complexCoordForPixelX(px);
-            let r = plotPixel(px, py, cx, cy);
+            let r = maybePlotPixel(px, py, cx, cy);
             same = same && r === first;
         }
         return same ? first : -1;
@@ -326,11 +330,11 @@ function plotDivide(pw, ph, buffer) {
     function plotLineY(px, y0, y1) {
         let cx = complexCoordForPixelX(px);
         let cy = complexCoordForPixelY(y0);
-        let first = plotPixel(px, y0, cx, cy);
+        let first = maybePlotPixel(px, y0, cx, cy);
         let same = true;
         for (let py = y0 + 1; py < y1; py++) {
             cy = complexCoordForPixelY(py);
-            let r = plotPixel(px, py, cx, cy);
+            let r = maybePlotPixel(px, py, cx, cy);
             same = same && r === first;
         }
         return same ? first : -1;
@@ -343,8 +347,10 @@ function plotDivide(pw, ph, buffer) {
 
     function fillArea(x0, y0, x1, y1, r) {
         for (let py = y0; py < y1; py++) {
-            for (let px = x0; px < x1; px++)
-                buffer[px + py * pw] = r;
+            let i = x0 + py * pw;
+            for (let px = x0; px < x1; px++) {
+                buffer[i++] = r;
+            }
         }
     }
 
@@ -366,10 +372,10 @@ function plotDivide(pw, ph, buffer) {
         } else {
             let mx = Math.round((x0 + x1) / 2);
             let my = Math.round((y0 + y1) / 2);
-            recurse(x0 + 1, y0 + 1, mx,     my);
-            recurse(mx,     y0 + 1, x1 - 1, my);
-            recurse(x0 + 1, my,     mx,     y1 - 1);
-            recurse(mx,     my,     x1 - 1, y1 - 1);
+            recurse(x0, y0, mx, my);
+            recurse(mx, y0, x1, my);
+            recurse(x0, my, mx, y1);
+            recurse(mx, my, x1, y1);
         }
     }
 

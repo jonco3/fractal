@@ -1,5 +1,12 @@
 // Parameters
-let params = {}
+let params = {
+    coords: {
+        centre_cx: -0.5,
+        centre_cy: 0.0,
+        size_cy: 2.0
+    },
+    plotter: "subdivide"
+};
 
 // Cached values
 let canvas;
@@ -27,8 +34,7 @@ function init()
     listenForCanvasClickEvents();
     listenForPopStateEvents();
     listenForUpdateClickEvents();
-    initCoords();
-    initPlotter();
+    updateCoordsScale();
     updateHistoryState();
     updateParamForm();
     resizeCanvas();
@@ -111,11 +117,6 @@ function resizeCanvas()
 
     updateCoordsScale();
     updateImage();
-}
-
-function initCoords()
-{
-    setCoords(-0.5, 0.0, 2.0);
 }
 
 function setCoords(centre_cx, centre_cy, size_cy)
@@ -202,11 +203,6 @@ function updateStatus(pixels, time)
 
     let status = document.getElementById("status");
     status.textContent = elems.join(" ");
-}
-
-function initPlotter()
-{
-    setPlotter("subdivide");
 }
 
 function setPlotter(name)

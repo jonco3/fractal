@@ -137,14 +137,28 @@ function updateImage()
 
 function updateStatus(coords, image, pixels, time)
 {
+    let elems = [];
+
+    elems.push(`Mandelbrot set`)
+
+    let cx = coords.centre_cx.toPrecision(4);
+    let cy = coords.centre_cy.toPrecision(4);
+    elems.push(`centered on (${cx}, ${cy}),`)
+
+    let ch = coords.size_cy.toPrecision(4);
+    elems.push(`height ${ch},`);
+
+    elems.push(`image size ${image.width} x ${image.height},`);
+
+    let totalPixels = image.width * image.height;
+    let plotted = (100 * pixels / totalPixels).toPrecision(2);
+    elems.push(`${plotted}% of pixels plotted`);
+
+    let ms = time.toPrecision(3);
+    elems.push(`in ${ms} mS`);
+
     let status = document.getElementById("status");
-    status.textContent =
-        `Mandelbrot set ` +
-        `centered on (${coords.centre_cx}, ${coords.centre_cy}), ` +
-        `height ${coords.size_cy}, ` +
-        `image size ${image.width} x ${image.height}, ` +
-        `${100 * pixels / (image.width * image.height)}% of pixels plotted ` +
-        `in ${time} mS`;
+    status.textContent = elems.join(" ");
 }
 
 function plotAll(image)

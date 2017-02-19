@@ -1,10 +1,4 @@
 body {
-    //color: white;
-    //background-color: black;
+    font-family: sans-serif;
+    font-size: 10pt;
 }
-
-#container {
-    color: white;
-    background-color: black;
-}
-

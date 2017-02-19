@@ -192,6 +192,8 @@ function updateStatus(pixels, time)
     let ch = params.coords.size_cy.toPrecision(4);
     elems.push(`height ${ch},`);
 
+    elems.push(`max iterations ${params.maxIterations},`);
+
     let pw = canvas.width;
     let ph = canvas.height;
     elems.push(`image size ${pw} x ${ph},`);

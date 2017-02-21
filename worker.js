@@ -1,9 +1,8 @@
 let params;
-let coordsScale;
-let centrePixelX;
-let centrePixelY;
 
 console.log("Worker start");
+
+importScripts("common.js");
 
 function assert(cond, message)
 {
@@ -35,23 +34,6 @@ onmessage = (event) => {
 function plotImageFinished(buffer, pixels)
 {
     postMessage(["plotImage", buffer.buffer, pixels], [buffer.buffer]);
-}
-
-function updateCoordsScale()
-{
-    coordsScale = params.coords.size_cy / params.image.height;
-    centrePixelX = Math.floor(params.image.width / 2);
-    centrePixelY = Math.floor(params.image.height / 2);
-}
-
-function complexCoordForPixelX(px)
-{
-    return params.coords.centre_cx + coordsScale * (px - centrePixelX);
-}
-
-function complexCoordForPixelY(py)
-{
-    return params.coords.centre_cy + coordsScale * (py - centrePixelY);
 }
 
 function plotImage()

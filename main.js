@@ -1,5 +1,9 @@
 // Parameters
 let params = {
+    image: {
+        width: undefined,
+        height: undefined,
+    },
     coords: {
         centre_cx: -0.5,
         centre_cy: 0.0,
@@ -127,11 +131,11 @@ function createWorker()
     };
 }
 
-function plotImageOnWorker(params, pw, ph, buffer)
+function plotImageOnWorker(params)
 {
     assert(!workerBusy, "Worker already running");
     workerBusy = true;
-    worker.postMessage(["plotImage", params, pw, ph]);
+    worker.postMessage(["plotImage", params]);
 }
 
 function maybeCancelWorker()
@@ -165,6 +169,8 @@ function resizeCanvas()
     canvas.style.height = height;
     context.scale(canvasScale, canvasScale);
 
+    params.image.width = canvas.width;
+    params.image.height = canvas.height;
     updateCoordsScale();
     plotImage();
 }
@@ -190,9 +196,9 @@ function updateHistoryState()
 
 function updateCoordsScale()
 {
-    coordsScale = params.coords.size_cy / canvas.height;
-    centrePixelX = Math.floor(canvas.width / 2);
-    centrePixelY = Math.floor(canvas.height / 2);
+    coordsScale = params.coords.size_cy / params.image.height;
+    centrePixelX = Math.floor(params.image.width / 2);
+    centrePixelY = Math.floor(params.image.height / 2);
 }
 
 function complexCoordForPixelX(px)
@@ -219,15 +225,13 @@ function plotImage()
     startTime = performance.now();
     maybeCancelWorker();
     setStatusPlotting();
-    plotImageOnWorker(params, canvas.width, canvas.height);
+    plotImageOnWorker(params);
 }
 
 function plotImageFinished(arrayBuffer, pixels)
 {
     let buffer = new Uint32Array(arrayBuffer);
-    let pw = canvas.width;
-    let ph = canvas.height;
-    if (buffer.length !== pw * ph) {
+    if (buffer.length !== params.image.width * params.image.height) {
         // It's possible we got resized while the worker was plotting.
         return;
     }

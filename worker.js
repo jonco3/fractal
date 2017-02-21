@@ -23,11 +23,9 @@ onmessage = (event) => {
     case "test":
         break;
     case "plotImage":
-        assert(event.data.length === 4, "Bad plotImage request");
+        assert(event.data.length === 2, "Bad plotImage request");
         params = event.data[1];
-        let pw = event.data[2];
-        let ph = event.data[3];
-        plotImage(pw, ph);
+        plotImage();
         break;
     default:
         error("Unrecognised request: " + JSON.stringify(event.data));
@@ -39,11 +37,11 @@ function plotImageFinished(buffer, pixels)
     postMessage(["plotImage", buffer.buffer, pixels], [buffer.buffer]);
 }
 
-function updateCoordsScale(pw, ph)
+function updateCoordsScale()
 {
-    coordsScale = params.coords.size_cy / ph;
-    centrePixelX = Math.floor(pw / 2);
-    centrePixelY = Math.floor(ph / 2);
+    coordsScale = params.coords.size_cy / params.image.height;
+    centrePixelX = Math.floor(params.image.width / 2);
+    centrePixelY = Math.floor(params.image.height / 2);
 }
 
 function complexCoordForPixelX(px)
@@ -56,9 +54,11 @@ function complexCoordForPixelY(py)
     return params.coords.centre_cy + coordsScale * (py - centrePixelY);
 }
 
-function plotImage(pw, ph)
+function plotImage()
 {
-    updateCoordsScale(pw, ph);
+    updateCoordsScale();
+    let pw = params.image.width;
+    let ph = params.image.height
     let buffer = new Uint32Array(pw * ph);
     let plot = plotterFunc();
     let pixels = plot(pw, ph, buffer);

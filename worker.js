@@ -1,7 +1,5 @@
 let params;
 
-console.log("Worker start");
-
 importScripts("common.js");
 
 function assert(cond, message)
@@ -17,7 +15,6 @@ function error(message)
 }
 
 onmessage = (event) => {
-    console.log("Received event: " + JSON.stringify(event.data));
     switch(event.data[0]) {
     case "test":
         break;

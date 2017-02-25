@@ -9,33 +9,41 @@ function error(message)
 }
 
 onmessage = (event) => {
+    try {
     switch(event.data[0]) {
     case "test":
         break;
-    case "plotImage":
-        assert(event.data.length === 2, "Bad plotImage request");
+    case "plotRegion":
+        assert(event.data.length === 3, "Bad plotRegion request");
         params = event.data[1];
-        plotImage();
+        let region = event.data[2];
+        let [buffer, pixels] = plotRegion(region);
+        postMessage(["plotRegionFinished", region, buffer.buffer, pixels],
+                    [buffer.buffer]);
         break;
     default:
         error("Unrecognised request: " + JSON.stringify(event.data));
     }
+    } catch (e) {
+        error("Exception: " + e);
+    }
 };
 
-function plotImageFinished(buffer, pixels)
+function plotRegion(region)
 {
-    postMessage(["plotImage", buffer.buffer, pixels], [buffer.buffer]);
-}
+    let [x0, y0, x1, y1] = region;
+    assert(x1 > x0 && y1 > y0);
+    let pw = x1 - x0;
+    let ph = y1 - y0;
 
-function plotImage()
-{
     updateCoordsScale();
-    let pw = params.image.width;
-    let ph = params.image.height
+    centrePixelX -= x0;
+    centrePixelY -= y0;
+
     let buffer = new Uint32Array(pw * ph);
     let plot = plotterFunc();
     let pixels = plot(pw, ph, buffer);
-    plotImageFinished(buffer, pixels);
+    return [buffer, pixels];
 }
 
 function plotterFunc()

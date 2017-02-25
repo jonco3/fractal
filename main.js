@@ -109,15 +109,18 @@ function createWorker()
         error("Requires Transferables -- please upgrade your browser");
 
     worker.onmessage = (event) => {
-        assert(workerBusy, "Worker not running");
-        workerBusy = false;
         switch(event.data[0]) {
         case "error":
             alert(event.data[1]);
             break;
-        case "plotImage":
-            assert(event.data.length === 3, "Bad response from plotImage");
-            plotImageFinished(event.data[1], event.data[2]);
+        case "plotRegionFinished":
+            assert(workerBusy, "Worker not running");
+            workerBusy = false;
+            assert(event.data.length === 4, "Bad response from plotRegion");
+            let region = event.data[1];
+            let arrayBuffer = event.data[2];
+            let pixels = event.data[3];
+            plotRegionFinished(region, arrayBuffer, pixels);
             break;
         default:
             error("Unrecognised reply from worker: " +
@@ -130,7 +133,8 @@ function plotImageOnWorker(params)
 {
     assert(!workerBusy, "Worker already running");
     workerBusy = true;
-    worker.postMessage(["plotImage", params]);
+    let region = [0, 0, params.image.width, params.image.height];
+    worker.postMessage(["plotRegion", params, region]);
 }
 
 function maybeCancelWorker()
@@ -206,19 +210,21 @@ function plotImage()
     plotImageOnWorker(params);
 }
 
-function plotImageFinished(arrayBuffer, pixels)
+function plotRegionFinished(region, arrayBuffer, pixels)
 {
+    let [x0, y0, x1, y1] = region;
+    assert(x1 > x0 && y1 > y0);
+
+    let pw = x1 - x0;
+    let ph = y1 - y0;
     let buffer = new Uint32Array(arrayBuffer);
-    if (buffer.length !== params.image.width * params.image.height) {
-        // It's possible we got resized while the worker was plotting.
-        return;
-    }
+    assert(buffer.length == pw * ph);
 
     let context = canvas.getContext("2d");
-    let image = context.createImageData(canvas.width, canvas.height);
+    let image = context.createImageData(pw, ph);
     coloriseBuffer(image.data, buffer);
     let endTime = performance.now();
-    context.putImageData(image, 0, 0);
+    context.putImageData(image, x0, y0);
     setStatusFinished(pixels, endTime - startTime);
 }
 

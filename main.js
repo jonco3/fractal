@@ -129,11 +129,10 @@ function createWorker()
     };
 }
 
-function plotImageOnWorker(params)
+function plotRegionOnWorker(region)
 {
     assert(!workerBusy, "Worker already running");
     workerBusy = true;
-    let region = [0, 0, params.image.width, params.image.height];
     worker.postMessage(["plotRegion", params, region]);
 }
 
@@ -141,6 +140,7 @@ function maybeCancelWorker()
 {
     if (workerBusy) {
         worker.terminate();
+        workerBusy = false;
         createWorker();
     }
 }
@@ -207,7 +207,8 @@ function plotImage()
     startTime = performance.now();
     maybeCancelWorker();
     setStatusPlotting();
-    plotImageOnWorker(params);
+    let region = [0, 0, params.image.width, params.image.height];
+    plotRegionOnWorker(region);
 }
 
 function plotRegionFinished(region, arrayBuffer, pixels)

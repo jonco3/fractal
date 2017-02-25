@@ -1,3 +1,5 @@
+/*-*- Mode: JS; tab-width: 4 -*-*/
+
 // Common code between main page and workers.
 
 let coordsScale;

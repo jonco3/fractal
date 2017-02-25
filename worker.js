@@ -1,3 +1,5 @@
+/*-*- Mode: JS; tab-width: 4 -*-*/
+
 let params;
 
 importScripts("common.js");

@@ -1,14 +1,6 @@
 /*-*- Mode: JS; tab-width: 4 -*-*/
 
-let params;
-
 importScripts("common.js");
-
-function assert(cond, message)
-{
-    if (!cond)
-        error("Assertion failed: " + message);
-}
 
 function error(message)
 {

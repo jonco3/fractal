@@ -1,20 +1,5 @@
 /*-*- Mode: JS; tab-width: 4 -*-*/
 
-// Parameters
-let params = {
-    image: {
-        width: undefined,
-        height: undefined,
-    },
-    coords: {
-        centre_cx: -0.5,
-        centre_cy: 0.0,
-        size_cy: 2.0
-    },
-    maxIterations: 512,
-    plotter: "subdivide"
-};
-
 // Cached values
 let canvas;
 let canvasScale;
@@ -24,12 +9,6 @@ let workerBusy;
 
 let startTime;
 
-function assert(cond, message)
-{
-    if (!cond)
-        error("Assertion failed: " + message);
-}
-
 function error(message)
 {
     alert(message);
@@ -38,6 +17,20 @@ function error(message)
 
 function init()
 {
+    params = {
+        image: {
+            width: undefined,
+            height: undefined,
+        },
+        coords: {
+            centre_cx: -0.5,
+            centre_cy: 0.0,
+            size_cy: 2.0
+        },
+        maxIterations: 512,
+        plotter: "subdivide"
+    };
+
     canvas = document.getElementById("canvas");
     listenForResizeEvent();
     listenForCanvasClickEvents();

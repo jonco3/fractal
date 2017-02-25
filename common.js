@@ -2,9 +2,17 @@
 
 // Common code between main page and workers.
 
+let params;
+
 let coordsScale;
 let centrePixelX;
 let centrePixelY;
+
+function assert(cond, message)
+{
+    if (!cond)
+        error("Assertion failed: " + message);
+}
 
 function updateCoordsScale()
 {

@@ -59,11 +59,12 @@ function listenForResizeEvent()
         if (running)
             return;
         running = true;
-        requestAnimationFrame(
+        setTimeout(
             () => {
                 resizeCanvas();
                 running = false;
-            });
+            },
+        200);
     });
 }
 

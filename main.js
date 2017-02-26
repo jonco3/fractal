@@ -239,46 +239,47 @@ function zoomAt(px, py)
 
 function plotImage()
 {
-    // This is probably an overcomplicated way to break up the image.  I'd also
-    // like to make the regions more square at this point if possible.
+    // Break up the image into (mostly) square tiles and queue the regions to be
+    // plotted.
 
-    function regionSpans(size, minSize, minSpans, maxSpans) {
-        let spans = Math.floor(size / minSize);
-        if (spans < minSpans)
-            spans = minSpans;
-        else if (spans > maxSpans)
-            spans = maxSpans;
-        return spans;
-    }
+    const minTileSidePixels = 200;
+    const maxTilesPerSide = 4;
 
-    startTime = performance.now();
-    totalPixels = 0;
+    assert(regionQueue.length === 0, "Region queue should be empty");
+
     maybeCancelWorkers();
     setStatusPlotting();
 
-    assert(regionQueue.length === 0, "Region queue should be empty");
-    regionQueue = [];
     let pw = params.image.width;
     let ph = params.image.height;
-    let nx = regionSpans(pw, 200, 1, 4);
-    let ny = regionSpans(ph, 200, 1, 4);
-    let sw = Math.floor(pw / nx);
-    let sh = Math.floor(ph / ny);
+
+    // Calculate number of tiles per side.
+    let pm = Math.min(pw, ph);
+    let tps = Math.floor(pm / minTileSidePixels);
+    tps = Math.max(tps, 1);
+    tps = Math.min(tps, maxTilesPerSide);
+
+    // Calculate tile size.
+    let ts = Math.floor(pm / tps);
+    let nx = Math.floor(pw / ts);
+    let ny = Math.floor(ph / ts);
 
     for (let sy = 0; sy < ny; sy++) {
-        let y0 = sy * sh;
-        let y1 = (sy + 1) * sh;
+        let y0 = sy * ts;
+        let y1 = (sy + 1) * ts;
         if (sy === ny - 1)
             y1 = ph;
         for (let sx = 0; sx < nx; sx++) {
-            let x0 = sx * sw;
-            let x1 = (sx + 1) * sw;
+            let x0 = sx * ts;
+            let x1 = (sx + 1) * ts;
             if (sx === nx - 1)
                 x1 = pw;
             regionQueue.push([x0, y0, x1, y1]);
         }
     }
 
+    totalPixels = 0;
+    startTime = performance.now();
     dispatchWorkers();
 }
 
@@ -291,7 +292,7 @@ function dispatchWorkers()
 function plotRegionFinished(region, arrayBuffer, pixels)
 {
     let [x0, y0, x1, y1] = region;
-    assert(x1 > x0 && y1 > y0);
+    assert(x1 > x0 && y1 > y0, "plotRegionFinished got bad region");
 
     dispatchWorkers();
 

@@ -10,20 +10,20 @@ function error(message)
 
 onmessage = (event) => {
     try {
-    switch(event.data[0]) {
-    case "test":
-        break;
-    case "plotRegion":
-        assert(event.data.length === 3, "Bad plotRegion request");
-        params = event.data[1];
-        let region = event.data[2];
-        let [buffer, pixels] = plotRegion(region);
-        postMessage(["plotRegionFinished", region, buffer.buffer, pixels],
-                    [buffer.buffer]);
-        break;
-    default:
-        error("Unrecognised request: " + JSON.stringify(event.data));
-    }
+        switch(event.data[0]) {
+        case "test":
+            break;
+        case "plotRegion":
+            assert(event.data.length === 3, "Bad plotRegion request");
+            params = event.data[1];
+            let region = event.data[2];
+            let [buffer, pixels] = plotRegion(region);
+            postMessage(["plotRegionFinished", region, buffer.buffer, pixels],
+                        [buffer.buffer]);
+            break;
+        default:
+            error("Unrecognised request: " + JSON.stringify(event.data));
+        }
     } catch (e) {
         error("Exception: " + e);
     }
@@ -32,7 +32,7 @@ onmessage = (event) => {
 function plotRegion(region)
 {
     let [x0, y0, x1, y1] = region;
-    assert(x1 > x0 && y1 > y0);
+    assert(x1 > x0 && y1 > y0, "plotRegion got bad region");
     let pw = x1 - x0;
     let ph = y1 - y0;
 

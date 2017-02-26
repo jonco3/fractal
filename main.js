@@ -58,6 +58,7 @@ function listenForResizeEvent()
     window.addEventListener("resize", () => {
         if (running)
             return;
+        running = true;
         requestAnimationFrame(
             () => {
                 resizeCanvas();
@@ -215,8 +216,13 @@ function resizeCanvas()
         context.backingStorePixelRatio || 1;
     canvasScale = devicePixelRatio / backingStoreRatio;
 
-    canvas.width = width * canvasScale;
-    canvas.height = height * canvasScale;
+    let pw = Math.floor(width * canvasScale);
+    let ph = Math.floor(height * canvasScale);
+    if (pw === params.image.width && ph === params.image.height)
+        return;
+
+    canvas.width = pw;
+    canvas.height = ph;
     canvas.style.width = width;
     canvas.style.height = height;
     context.scale(canvasScale, canvasScale);

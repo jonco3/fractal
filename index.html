@@ -10,11 +10,16 @@
       <form>
         <label>
           Plotter:
-          <select name="plotter" id="plotterChoice">
+          <select name="plotter">
             <option value="subdivide">Subdivide</option>
             <option value="fill">Fill</option>
             <option value="naive">Naive</option>
           </select>
+        </label>
+        <label>
+          Threads:
+          <input name="threads" type="number" size="2" style='width:3em'
+                 value="1" step="1" min="1" max="16"></input>
         </label>
         <input id="update" type="button" value="Update"></input>
       </form>

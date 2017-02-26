@@ -32,7 +32,7 @@ function init()
         },
         maxIterations: 512,
         plotter: "subdivide",
-        threads: 4
+        threads: defaultThreadCount()
     };
 
     canvas = document.getElementById("canvas");
@@ -42,9 +42,14 @@ function init()
     listenForUpdateClickEvents();
     updateCoordsScale();
     updateHistoryState();
-    updateParamForm();
+    updateFormFromParams();
     createWorkers();
     resizeCanvas();
+}
+
+function defaultThreadCount()
+{
+    return window.navigator.hardwareConcurrency || 4;
 }
 
 function listenForResizeEvent()
@@ -76,7 +81,7 @@ function listenForPopStateEvents()
 {
     window.addEventListener("popstate", (event) => {
         params = event.state;
-        updateParamForm();
+        updateFormFromParams();
         updateCoordsScale();
         plotImage();
     });
@@ -85,18 +90,33 @@ function listenForPopStateEvents()
 function listenForUpdateClickEvents()
 {
     let button = document.getElementById("update");
-    let plotterChoice = document.getElementById("plotterChoice");
     button.addEventListener("click", (event) => {
-        params.plotter = plotterChoice.value;
+        setParamsFromForm();
         updateHistoryState();
         plotImage();
     });
 }
 
-function updateParamForm()
+function setParamsFromForm()
 {
-    let plotterChoice = document.getElementById("plotterChoice");
-    plotterChoice.value = params.plotter;
+    let form = document.forms[0];
+    let plotter = form.elements["plotter"].value;
+    if (plotter !== "subdivide" && plotter !== "fill" && plotter !== "naive")
+        error("Bad plotter name: " + plotter)
+
+    let threads = +form.elements["threads"].value;
+    if (threads < 1 || threads > 16)
+        error("Bad thread count: " + threads);
+
+    params.plotter = plotter;
+    params.threads = threads;
+}
+
+function updateFormFromParams()
+{
+    let form = document.forms[0];
+    form.elements["plotter"].value = params.plotter;
+    form.elements["threads"].value = params.threads;
 }
 
 function createWorkers()
@@ -107,9 +127,7 @@ function createWorkers()
     assert(busyWorkers.length == 0,
            "createWorkers expects no workers to be running");
 
-    assert(typeof params.threads === 'number' &&
-           params.threads > 0 && params.threads <= 8,
-           "Bad thread count parameter");
+    assert(typeof params.threads === 'number', "Bad thread count parameter");
 
     while (idleWorkers.length > params.threads) {
         idleWorkers.pop().terminate();

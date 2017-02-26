@@ -270,8 +270,6 @@ function plotImage()
     const minTileSidePixels = 200;
     const maxTilesPerSide = 4;
 
-    assert(regionQueue.length === 0, "Region queue should be empty");
-
     maybeCancelWorkers();
     setStatusPlotting();
 
@@ -289,6 +287,7 @@ function plotImage()
     let nx = Math.floor(pw / ts);
     let ny = Math.floor(ph / ts);
 
+    assert(regionQueue.length === 0, "Region queue should be empty");
     for (let sy = 0; sy < ny; sy++) {
         let y0 = sy * ts;
         let y1 = (sy + 1) * ts;
@@ -331,7 +330,7 @@ function plotRegionFinished(region, arrayBuffer, pixels)
     coloriseBuffer(image.data, buffer);
     context.putImageData(image, x0, y0);
 
-    totalPixels += pixels
+    totalPixels += pixels;
 
     if (busyWorkers.length === 0) {
         let endTime = performance.now();

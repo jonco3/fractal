@@ -4,10 +4,13 @@
 let canvas;
 let canvasScale;
 
-let worker;
-let workerBusy;
+let idleWorkers = [];
+let busyWorkers = [];
 
 let startTime;
+let totalPixels;
+
+let regionQueue = [];
 
 function error(message)
 {
@@ -28,7 +31,8 @@ function init()
             size_cy: 2.0
         },
         maxIterations: 512,
-        plotter: "subdivide"
+        plotter: "subdivide",
+        threads: 4
     };
 
     canvas = document.getElementById("canvas");
@@ -39,7 +43,7 @@ function init()
     updateCoordsScale();
     updateHistoryState();
     updateParamForm();
-    createWorker();
+    createWorkers();
     resizeCanvas();
 }
 
@@ -95,54 +99,85 @@ function updateParamForm()
     plotterChoice.value = params.plotter;
 }
 
-function createWorker()
+function createWorkers()
 {
     if (!window.Worker)
         error("Requires workers -- please upgrade your browser");
 
-    workerBusy = false;
-    worker = new Worker("worker.js");
+    assert(busyWorkers.length == 0,
+           "createWorkers expects no workers to be running");
+
+    assert(typeof params.threads === 'number' &&
+           params.threads > 0 && params.threads <= 8,
+           "Bad thread count parameter");
+
+    while (idleWorkers.length > params.threads) {
+        idleWorkers.pop().terminate();
+    }
+
+    for (let i = idleWorkers.length; i < params.threads; i++) {
+        worker = new Worker("worker.js");
+        if (!worker)
+            error("Failed to create worker");
+        worker.onmessage = processMessageFromWorker;
+        idleWorkers.push(worker);
+    }
 
     var testBuffer = new ArrayBuffer(1);
-    worker.postMessage(["test", testBuffer], [testBuffer]);
+    idleWorkers[0].postMessage(["test", testBuffer], [testBuffer]);
     if (testBuffer.byteLength)
         error("Requires Transferables -- please upgrade your browser");
+}
 
-    worker.onmessage = (event) => {
-        switch(event.data[0]) {
-        case "error":
-            alert(event.data[1]);
-            break;
-        case "plotRegionFinished":
-            assert(workerBusy, "Worker not running");
-            workerBusy = false;
-            assert(event.data.length === 4, "Bad response from plotRegion");
-            let region = event.data[1];
-            let arrayBuffer = event.data[2];
-            let pixels = event.data[3];
-            plotRegionFinished(region, arrayBuffer, pixels);
-            break;
-        default:
-            error("Unrecognised reply from worker: " +
-                  JSON.stringify(event.data));
-        }
-    };
+function noteWorkerIdle(worker)
+{
+    let i = busyWorkers.indexOf(worker);
+    assert(i !== -1, "Worker not running");
+    busyWorkers.splice(i, 1);
+    idleWorkers.push(worker);
+}
+
+function getIdleWorker()
+{
+    assert(idleWorkers.length > 0, "All workers already running");
+    let worker = idleWorkers.pop();
+    busyWorkers.push(worker);
+    return worker;
+}
+
+function processMessageFromWorker(event)
+{
+    switch(event.data[0]) {
+    case "error":
+        error(event.data[1]);
+        break;
+    case "plotRegionFinished":
+        noteWorkerIdle(this);
+        assert(event.data.length === 4, "Bad response from plotRegion");
+        let region = event.data[1];
+        let arrayBuffer = event.data[2];
+        let pixels = event.data[3];
+        plotRegionFinished(region, arrayBuffer, pixels);
+        break;
+    default:
+        error("Unrecognised reply from worker: " +
+              JSON.stringify(event.data));
+    }
 }
 
 function plotRegionOnWorker(region)
 {
-    assert(!workerBusy, "Worker already running");
-    workerBusy = true;
-    worker.postMessage(["plotRegion", params, region]);
+    getIdleWorker().postMessage(["plotRegion", params, region]);
 }
 
-function maybeCancelWorker()
+function maybeCancelWorkers()
 {
-    if (workerBusy) {
+    regionQueue = [];
+    busyWorkers.forEach((worker) => {
         worker.terminate();
-        workerBusy = false;
-        createWorker();
-    }
+    })
+    busyWorkers = [];
+    createWorkers();
 }
 
 function resizeCanvas()
@@ -204,11 +239,53 @@ function zoomAt(px, py)
 
 function plotImage()
 {
+    // This is probably an overcomplicated way to break up the image.  I'd also
+    // like to make the regions more square at this point if possible.
+
+    function regionSpans(size, minSize, minSpans, maxSpans) {
+        let spans = Math.floor(size / minSize);
+        if (spans < minSpans)
+            spans = minSpans;
+        else if (spans > maxSpans)
+            spans = maxSpans;
+        return spans;
+    }
+
     startTime = performance.now();
-    maybeCancelWorker();
+    totalPixels = 0;
+    maybeCancelWorkers();
     setStatusPlotting();
-    let region = [0, 0, params.image.width, params.image.height];
-    plotRegionOnWorker(region);
+
+    assert(regionQueue.length === 0, "Region queue should be empty");
+    regionQueue = [];
+    let pw = params.image.width;
+    let ph = params.image.height;
+    let nx = regionSpans(pw, 200, 1, 4);
+    let ny = regionSpans(ph, 200, 1, 4);
+    let sw = Math.floor(pw / nx);
+    let sh = Math.floor(ph / ny);
+
+    for (let sy = 0; sy < ny; sy++) {
+        let y0 = sy * sh;
+        let y1 = (sy + 1) * sh;
+        if (sy === ny - 1)
+            y1 = ph;
+        for (let sx = 0; sx < nx; sx++) {
+            let x0 = sx * sw;
+            let x1 = (sx + 1) * sw;
+            if (sx === nx - 1)
+                x1 = pw;
+            regionQueue.push([x0, y0, x1, y1]);
+        }
+    }
+
+    dispatchWorkers();
+}
+
+function dispatchWorkers()
+{
+    while (idleWorkers.length !== 0 && regionQueue.length !== 0)
+        plotRegionOnWorker(regionQueue.shift());
 }
 
 function plotRegionFinished(region, arrayBuffer, pixels)
@@ -216,17 +293,24 @@ function plotRegionFinished(region, arrayBuffer, pixels)
     let [x0, y0, x1, y1] = region;
     assert(x1 > x0 && y1 > y0);
 
+    dispatchWorkers();
+
     let pw = x1 - x0;
     let ph = y1 - y0;
     let buffer = new Uint32Array(arrayBuffer);
-    assert(buffer.length == pw * ph);
+    assert(buffer.length == pw * ph, "Bad buffer size");
 
     let context = canvas.getContext("2d");
     let image = context.createImageData(pw, ph);
     coloriseBuffer(image.data, buffer);
-    let endTime = performance.now();
     context.putImageData(image, x0, y0);
-    setStatusFinished(pixels, endTime - startTime);
+
+    totalPixels += pixels
+
+    if (busyWorkers.length === 0) {
+        let endTime = performance.now();
+        setStatusFinished(totalPixels, endTime - startTime);
+    }
 }
 
 function setStatusPlotting()

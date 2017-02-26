@@ -8,6 +8,10 @@ let coordsScale;
 let centrePixelX;
 let centrePixelY;
 
+function log(message) {
+    console.log(message);
+}
+
 function assert(cond, message)
 {
     if (!cond)

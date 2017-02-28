@@ -175,9 +175,9 @@ function processMessageFromWorker(event)
         noteWorkerIdle(this);
         assert(event.data.length === 4, "Bad response from plotRegion");
         let region = event.data[1];
-        let arrayBuffer = event.data[2];
+        let buffer = event.data[2];
         let pixels = event.data[3];
-        plotRegionFinished(region, arrayBuffer, pixels);
+        plotRegionFinished(region, buffer, pixels);
         break;
     default:
         error("Unrecognised reply from worker: " +
@@ -313,21 +313,28 @@ function dispatchWorkers()
         plotRegionOnWorker(regionQueue.shift());
 }
 
-function plotRegionFinished(region, arrayBuffer, pixels)
+function plotRegionFinished(region, buffer, pixels)
 {
     let [x0, y0, x1, y1] = region;
     assert(x1 > x0 && y1 > y0, "plotRegionFinished got bad region");
 
-    dispatchWorkers();
-
     let pw = x1 - x0;
     let ph = y1 - y0;
-    let buffer = new Uint32Array(arrayBuffer);
-    assert(buffer.length == pw * ph, "Bad buffer size");
+    assert(buffer.byteLength === pw * ph * 4, "Bad buffer size");
+
+    dispatchWorkers();
+
+    let colourData = new Uint8ClampedArray(buffer);
+
+    let image;
+    try {
+        image = new ImageData(colourData, pw, ph);
+    } catch (e) {
+        // This may not work in IE.
+        error("ImageData constructor not supported in your browser: " + e);
+    }
 
     let context = canvas.getContext("2d");
-    let image = context.createImageData(pw, ph);
-    coloriseBuffer(image.data, buffer);
     context.putImageData(image, x0, y0);
 
     totalPixels += pixels;
@@ -376,26 +383,4 @@ function setStatusFinished(pixels, time)
 function setPlotter(name)
 {
     params.plotter = name;
-}
-
-function coloriseBuffer(imageData, buffer)
-{
-    for (let i = 0; i < buffer.length; i++) {
-        r = buffer[i];
-        colorisePixel(imageData, i * 4, r);
-    }
-}
-
-function colorisePixel(imageData, i, r)
-{
-    if (r <= 1) {
-        imageData[i + 0] = 0;
-        imageData[i + 1] = 0;
-        imageData[i + 2] = 0;
-    } else {
-        imageData[i + 0] = r % 255;
-        imageData[i + 1] = (r + 80) % 255;
-        imageData[i + 2] = (r + 160) % 255
-    }
-    imageData[i + 3] = 255;
 }

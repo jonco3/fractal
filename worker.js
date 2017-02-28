@@ -18,8 +18,8 @@ onmessage = (event) => {
             params = event.data[1];
             let region = event.data[2];
             let [buffer, pixels] = plotRegion(region);
-            postMessage(["plotRegionFinished", region, buffer.buffer, pixels],
-                        [buffer.buffer]);
+            postMessage(["plotRegionFinished", region, buffer, pixels],
+                        [buffer]);
             break;
         default:
             error("Unrecognised request: " + JSON.stringify(event.data));
@@ -40,9 +40,14 @@ function plotRegion(region)
     centrePixelX -= x0;
     centrePixelY -= y0;
 
-    let buffer = new Uint32Array(pw * ph);
+    let buffer = new ArrayBuffer(pw * ph * 4);
+    let iterationData = new Uint32Array(buffer);
     let plot = plotterFunc();
-    let pixels = plot(pw, ph, buffer);
+    let pixels = plot(pw, ph, iterationData);
+
+    let colourData = new Uint8ClampedArray(buffer);
+    colouriseBuffer(iterationData, colourData);
+
     return [buffer, pixels];
 }
 
@@ -233,4 +238,25 @@ function iterations(cx, cy)
     }
 
     return 1;
+}
+
+function colouriseBuffer(iterationData, colourData)
+{
+    for (let i = 0; i < iterationData.length; i++)
+        colourisePoint(iterationData[i], colourData, i * 4);
+}
+
+function colourisePoint(r, colourData, i)
+{
+    if (r <= 1) {
+        colourData[i + 0] = 0;
+        colourData[i + 1] = 0;
+        colourData[i + 2] = 0;
+        colourData[i + 3] = 255;
+    } else {
+        colourData[i + 0] = r % 255;
+        colourData[i + 1] = (r + 80) % 255;
+        colourData[i + 2] = (r + 160) % 255
+        colourData[i + 3] = 255;
+    }
 }

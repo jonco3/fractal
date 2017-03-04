@@ -29,7 +29,7 @@ function init()
     updateCoordsScale();
     updateHistoryState();
     updateFormFromParams();
-    initPlotter(setStatusPlotting, setStatusFinished);
+    initPlotter();
     resizeCanvas();
 }
 
@@ -71,7 +71,7 @@ function listenForPopStateEvents()
         params = event.state;
         updateFormFromParams();
         updateCoordsScale();
-        plotImage(canvas);
+        runPlotter();
     });
 }
 
@@ -81,7 +81,7 @@ function listenForUpdateClickEvents()
     button.addEventListener("click", (event) => {
         setParamsFromForm();
         updateHistoryState();
-        plotImage(canvas);
+        runPlotter();
     });
 }
 
@@ -138,7 +138,7 @@ function resizeCanvas()
     params.image.width = canvas.width;
     params.image.height = canvas.height;
     updateCoordsScale();
-    plotImage(canvas);
+    runPlotter();
 }
 
 function setCoords(centre_cx, centre_cy, size_cy)
@@ -166,7 +166,13 @@ function zoomAt(px, py)
               complexCoordForPixelY(py),
               params.coords.size_cy / 2);
     updateHistoryState();
-    plotImage(canvas);
+    runPlotter();
+}
+
+function runPlotter()
+{
+    setStatusPlotting();
+    plotImage(canvas, setStatusFinished);
 }
 
 function setStatusPlotting()

@@ -1,7 +1,6 @@
 /*-*- Mode: JS; tab-width: 4 -*-*/
 
 let plotterCanvas = null;
-let plotterStartCallback;
 let plotterEndCallback;
 
 let idleWorkers = [];
@@ -12,10 +11,8 @@ let totalPixels;
 
 let regionQueue = [];
 
-function initPlotter(startCallback = () => {}, endCallback = () => {})
+function initPlotter()
 {
-    plotterStartCallback = startCallback;
-    plotterEndCallback = endCallback;
     createWorkers();
 }
 
@@ -104,7 +101,7 @@ function maybeCancelWorkers()
     createWorkers();
 }
 
-function plotImage(canvas)
+function plotImage(canvas, endCallback)
 {
     // Break up the image into (mostly) square tiles and queue the regions to be
     // plotted.
@@ -112,9 +109,10 @@ function plotImage(canvas)
     const minTileSidePixels = 200;
     const maxTilesPerSide = 4;
 
-    plotterStartCallback();
-    maybeCancelWorkers();
     plotterCanvas = canvas;
+    plotterEndCallback = endCallback;
+
+    maybeCancelWorkers();
 
     let pw = params.image.width;
     let ph = params.image.height;

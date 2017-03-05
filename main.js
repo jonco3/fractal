@@ -16,7 +16,8 @@ function init()
             centre_cy: 0.0,
             size_cy: 2.0
         },
-        maxIterations: 512,
+        autoIterations: true,
+        maxIterations: 256,
         plotter: "subdivide",
         threads: defaultThreadCount()
     };

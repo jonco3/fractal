@@ -9,23 +9,19 @@ function error(message)
 }
 
 onmessage = (event) => {
-    try {
-        switch(event.data[0]) {
-        case "test":
-            break;
-        case "plotRegion":
-            assert(event.data.length === 3, "Bad plotRegion request");
-            params = event.data[1];
-            let region = event.data[2];
-            let [buffer, pixels] = plotRegion(region);
-            postMessage(["plotRegionFinished", region, buffer, pixels],
-                        [buffer]);
-            break;
-        default:
-            error("Unrecognised request: " + JSON.stringify(event.data));
-        }
-    } catch (e) {
-        error("Exception: " + e);
+    switch(event.data[0]) {
+    case "test":
+        break;
+    case "plotRegion":
+        assert(event.data.length === 3, "Bad plotRegion request");
+        params = event.data[1];
+        let region = event.data[2];
+        let [buffer, pixels, stats] = plotRegion(region);
+        postMessage(["plotRegionFinished", region, buffer, pixels, stats],
+                    [buffer]);
+        break;
+    default:
+        error("Unrecognised request: " + JSON.stringify(event.data));
     }
 };
 
@@ -45,10 +41,12 @@ function plotRegion(region)
     let plot = plotterFunc();
     let pixels = plot(pw, ph, iterationData);
 
+    let stats = computeStats(iterationData, pw, ph);
+
     let colourData = new Uint8ClampedArray(buffer);
     colouriseBuffer(iterationData, colourData);
 
-    return [buffer, pixels];
+    return [buffer, pixels, stats];
 }
 
 function plotterFunc()
@@ -223,6 +221,8 @@ function plotDivide(pw, ph, buffer) {
 
 function iterations(cx, cy)
 {
+    // Returns |itererations + 1| or zero if the point does not escape.
+
     let zx = cx;
     let zy = cy;
     let i = 2;
@@ -238,6 +238,53 @@ function iterations(cx, cy)
     }
 
     return 1;
+}
+
+Math.log2 = Math.log2 || function(x) {
+  return Math.log(x) * Math.LOG2E;
+};
+
+function computeStats(iterationData, pw, ph)
+{
+    // Calculate distribution of iterations required for the neighbours of black
+    // pixels. This is used to work out whether we should increase the maximum
+    // iterations.
+    //
+    // TODO: We don't use all of this data in the main app although it's useful
+    // for testing.
+
+    let buckets = Math.round(Math.log2(params.maxIterations));
+    let stats = [];
+    for (let b = 0; b < buckets; b++)
+        stats[b] = 0;
+
+    let total = 0;
+    for (let py = 1; py < ph - 1; py++) {
+        let i = py * pw;
+        for (let px = 1; px < pw - 1; px++) {
+            i++;
+            let r = iterationData[i];
+            if (r <= 1)
+                continue;
+
+            if (iterationData[i - 1] > 1 &&
+                iterationData[i - pw] > 1 &&
+                iterationData[i + 1] > 1 &&
+                iterationData[i + pw] > 1)
+            {
+                continue;
+            }
+
+            let b = Math.floor(Math.log2(r - 1));
+            assert(b < buckets);
+            stats[b]++;
+            total++;
+        }
+    }
+
+    stats.total = total;
+
+    return stats;
 }
 
 function colouriseBuffer(iterationData, colourData)

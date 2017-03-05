@@ -11,6 +11,8 @@ let totalPixels;
 
 let regionQueue = [];
 
+let plotterStats;
+
 function initPlotter()
 {
     createWorkers();
@@ -74,11 +76,9 @@ function processMessageFromWorker(event)
         break;
     case "plotRegionFinished":
         noteWorkerIdle(this);
-        assert(event.data.length === 4, "Bad response from plotRegion");
-        let region = event.data[1];
-        let buffer = event.data[2];
-        let pixels = event.data[3];
-        plotRegionFinished(region, buffer, pixels);
+        assert(event.data.length === 5, "Bad response from plotRegion");
+        let [, region, buffer, pixels, stats] = event.data;
+        plotRegionFinished(region, buffer, pixels, stats);
         break;
     default:
         error("Unrecognised reply from worker: " +
@@ -106,11 +106,12 @@ function plotImage(canvas, endCallback)
     // Break up the image into (mostly) square tiles and queue the regions to be
     // plotted.
 
-    const minTileSidePixels = 200;
+    const minTileSidePixels = 100;
     const maxTilesPerSide = 4;
 
     plotterCanvas = canvas;
     plotterEndCallback = endCallback;
+    plotterStats = null;
 
     maybeCancelWorkers();
 
@@ -147,14 +148,14 @@ function plotImage(canvas, endCallback)
     startTime = performance.now();
     dispatchWorkers();
 }
-
+l
 function dispatchWorkers()
 {
     while (idleWorkers.length !== 0 && regionQueue.length !== 0)
         plotRegionOnWorker(regionQueue.shift());
 }
 
-function plotRegionFinished(region, buffer, pixels)
+function plotRegionFinished(region, buffer, pixels, stats)
 {
     let [x0, y0, x1, y1] = region;
     assert(x1 > x0 && y1 > y0, "plotRegionFinished got bad region");
@@ -162,6 +163,12 @@ function plotRegionFinished(region, buffer, pixels)
     let pw = x1 - x0;
     let ph = y1 - y0;
     assert(buffer.byteLength === pw * ph * 4, "Bad buffer size");
+
+    if (shouldIncreaseIterations(stats)) {
+        params.maxIterations *= 2;
+        plotImage(plotterCanvas, plotterEndCallback);
+        return;
+    }
 
     dispatchWorkers();
 
@@ -179,10 +186,29 @@ function plotRegionFinished(region, buffer, pixels)
     context.putImageData(image, x0, y0);
 
     totalPixels += pixels;
+    accumulateStats(stats);
 
     if (busyWorkers.length === 0) {
         let endTime = performance.now();
         plotterCanvas = null;
-        plotterEndCallback(totalPixels, endTime - startTime);
+        plotterEndCallback(totalPixels, endTime - startTime, plotterStats);
     }
+}
+
+function accumulateStats(stats)
+{
+    if (!plotterStats) {
+        plotterStats = stats;
+        return;
+    }
+
+    plotterStats.total += stats.total;
+    for (let i = 0; i < stats.length; i++)
+        plotterStats[i] += stats[i];
+}
+
+function shouldIncreaseIterations(stats)
+{
+    return params.autoIterations &&
+           stats[stats.length - 1] / stats.total > 0.15;
 }

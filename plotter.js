@@ -182,7 +182,7 @@ function plotRegionFinished(region, buffer, pixels)
 
     if (busyWorkers.length === 0) {
         let endTime = performance.now();
-        plotterEndCallback(totalPixels, endTime - startTime);
         plotterCanvas = null;
+        plotterEndCallback(totalPixels, endTime - startTime);
     }
 }

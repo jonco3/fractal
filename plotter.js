@@ -148,7 +148,7 @@ function plotImage(canvas, endCallback)
     startTime = performance.now();
     dispatchWorkers();
 }
-l
+
 function dispatchWorkers()
 {
     while (idleWorkers.length !== 0 && regionQueue.length !== 0)

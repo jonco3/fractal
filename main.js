@@ -27,6 +27,7 @@ function init()
     listenForCanvasClickEvents();
     listenForPopStateEvents();
     listenForUpdateClickEvents();
+    maybeSetParamsFromQueryString();
     updateCoordsScale();
     updateHistoryState();
     updateFormFromParams();
@@ -108,6 +109,56 @@ function updateFormFromParams()
     form.elements["threads"].value = params.threads;
 }
 
+function maybeSetParamsFromQueryString()
+{
+    let query = window.location.search;
+    if (!query)
+        return;
+
+    let elements = query.substring(1).split("&");
+    if (elements.length !== 4) {
+        alert("Bad query string (wrong number of elements)");
+        return;
+    }
+
+    function parseElement(name, parse, s)
+    {
+        if (s.substring(0, 1) !== name || s.length <= 2)
+            return NaN;
+
+        return parse(s.substring(2));
+    }
+
+    let x = parseElement("x", parseFloat, elements[0]);
+    let y = parseElement("y", parseFloat, elements[1]);
+    let h = parseElement("h", parseFloat, elements[2]);
+    let i = parseElement("i", parseInt, elements[3]);
+    if (Number.isNaN(x) ||
+        Number.isNaN(y) ||
+        Number.isNaN(h) ||
+        Number.isNaN(i))
+    {
+        alert("Bad query parameter");
+        return;
+    }
+
+    params.coords.centre_cx = x;
+    params.coords.centre_cy = y;
+    params.coords.size_cy = h;
+    params.maxIterations = i;
+}
+
+function queryStringFromParams()
+{
+    let a = [
+        `x=${params.coords.centre_cx}`,
+        `y=${params.coords.centre_cy}`,
+        `h=${params.coords.size_cy}`,
+        `i=${params.maxIterations}`
+    ];
+    return a.join("&");
+}
+
 function resizeCanvas()
 {
     let container = document.getElementById("container");
@@ -155,10 +206,11 @@ function setCoords(centre_cx, centre_cy, size_cy)
 
 function updateHistoryState()
 {
+    let url = "index.html?" + queryStringFromParams();
     if (history.state)
-        history.pushState(params, "");
+        history.pushState(params, document.title, url);
     else
-        history.replaceState(params, "");
+        history.replaceState(params, document.title, url);
 }
 
 function zoomAt(px, py)

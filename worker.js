@@ -41,8 +41,9 @@ function plotRegion(region)
 
     let buffer = new ArrayBuffer(pw * ph * 4);
     let iterationData = new Uint32Array(buffer);
-    let plot = plotterFunc();
-    let pixelsPlotted = plot(pw, ph, iterationData);
+    let plotter = plotterFunc();
+    let iterate = iterationFunc();
+    let pixelsPlotted = plotter(iterate, pw, ph, iterationData);
 
     let stats = computeStats(iterationData, pw, ph, pixelsPlotted);
 
@@ -55,7 +56,8 @@ function plotRegion(region)
 function antialiasRegion(region, buffer)
 {
     let [pw, ph] = initRegion(region);
-    let pixelsPlotted = antialias(pw, ph, buffer);
+    let iterate = iterationFunc();
+    let pixelsPlotted = antialias(iterate, pw, ph, buffer);
     return {
         totalPixels: pw * ph,
         pixelsPlotted: pixelsPlotted
@@ -88,7 +90,12 @@ function plotterFunc()
     }
 }
 
-function plotAll(pw, ph, buffer)
+function iterationFunc()
+{
+    return mandelbrot;
+}
+
+function plotAll(iterations, pw, ph, buffer)
 {
     let i = 0;
     for (let py = 0; py < ph; py++) {
@@ -101,7 +108,7 @@ function plotAll(pw, ph, buffer)
     return pw * ph;
 }
 
-function plotFill(pw, ph, buffer) {
+function plotFill(iterations, pw, ph, buffer) {
     let px;
     let py;
 
@@ -159,7 +166,7 @@ function plotFill(pw, ph, buffer) {
     return pixels;
 }
 
-function plotDivide(pw, ph, buffer) {
+function plotDivide(iterations, pw, ph, buffer) {
     let px;
     let py;
     let pixels = 0;
@@ -244,7 +251,7 @@ function plotDivide(pw, ph, buffer) {
     return pixels;
 }
 
-function antialias(pw, ph, buffer)
+function antialias(iterations, pw, ph, buffer)
 {
     let imageData = new Uint8ClampedArray(buffer);
     let wordView = new Uint32Array(buffer);
@@ -301,7 +308,7 @@ function antialias(pw, ph, buffer)
     return pixelsPlotted;
 }
 
-function iterations(cx, cy)
+function mandelbrot(cx, cy)
 {
     // Returns |itererations + 1| or zero if the point does not escape.
 

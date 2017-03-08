@@ -16,9 +16,8 @@ onmessage = (event) => {
         assert(event.data.length === 3, "Bad plotRegion request");
         params = event.data[1];
         let region = event.data[2];
-        let [buffer, pixels, stats] = plotRegion(region);
-        postMessage(["plotRegionFinished", region, buffer, pixels, stats],
-                    [buffer]);
+        let [buffer, stats] = plotRegion(region);
+        postMessage(["plotRegionFinished", region, buffer, stats], [buffer]);
         break;
     default:
         error("Unrecognised request: " + JSON.stringify(event.data));
@@ -39,14 +38,14 @@ function plotRegion(region)
     let buffer = new ArrayBuffer(pw * ph * 4);
     let iterationData = new Uint32Array(buffer);
     let plot = plotterFunc();
-    let pixels = plot(pw, ph, iterationData);
+    let pixelsPlotted = plot(pw, ph, iterationData);
 
-    let stats = computeStats(iterationData, pw, ph);
+    let stats = computeStats(iterationData, pw, ph, pixelsPlotted);
 
     let colourData = new Uint8ClampedArray(buffer);
     colouriseBuffer(iterationData, colourData);
 
-    return [buffer, pixels, stats];
+    return [buffer, stats];
 }
 
 function plotterFunc()
@@ -244,47 +243,66 @@ Math.log2 = Math.log2 || function(x) {
   return Math.log(x) * Math.LOG2E;
 };
 
-function computeStats(iterationData, pw, ph)
+function computeStats(iterationData, pw, ph, pixelsPlotted)
 {
-    // Calculate distribution of iterations required for the neighbours of black
-    // pixels. This is used to work out whether we should increase the maximum
-    // iterations.
+    // Calculate various information about the image including the distribution
+    // of iterations required for the neighbours of black pixels. The latter is
+    // used to work out whether we should increase the maximum iterations.
     //
     // TODO: We don't use all of this data in the main app although it's useful
     // for testing.
 
-    let buckets = Math.round(Math.log2(params.maxIterations));
-    let stats = [];
-    for (let b = 0; b < buckets; b++)
-        stats[b] = 0;
+    let [blackPixels, edgePixels, edgeDist] = computeEdgeData(iterationData, pw, ph);
+    return {
+        totalPixels: pw * ph,
+        pixelsPlotted: pixelsPlotted,
+        blackPixels: blackPixels,
+        edgePixels: edgePixels,
+        edgeDist: edgeDist
+    };
+}
 
-    let total = 0;
-    for (let py = 1; py < ph - 1; py++) {
-        let i = py * pw;
-        for (let px = 1; px < pw - 1; px++) {
+function computeEdgeData(iterationData, pw, ph)
+{
+    let buckets = Math.round(Math.log2(params.maxIterations));
+    let dist = new Array(buckets);
+    for (let b = 0; b < buckets; b++)
+        dist[b] = 0;
+
+    function hasBlackNeighbour(px, py, i) {
+        if (px > 0 && iterationData[i - 1] <= 1)
+            return true;
+        if (py > 0 && iterationData[i - pw] <= 1)
+            return true;
+        if (px < pw - 1 && iterationData[i + 1] <= 1)
+            return true;
+        if (py < ph - 1 && iterationData[i + pw] <= 1)
+            return true;
+    }
+
+    let blackPixels = 0;
+    let edgePixels = 0;
+    let i = -1;
+    for (let py = 0; py < ph; py++) {
+        for (let px = 0; px < pw; px++) {
             i++;
             let r = iterationData[i];
-            if (r <= 1)
-                continue;
-
-            if (iterationData[i - 1] > 1 &&
-                iterationData[i - pw] > 1 &&
-                iterationData[i + 1] > 1 &&
-                iterationData[i + pw] > 1)
-            {
+            if (r <= 1) {
+                blackPixels++;
                 continue;
             }
 
+            if (!hasBlackNeighbour(px, py, i))
+                continue;
+
             let b = Math.floor(Math.log2(r - 1));
-            assert(b < buckets);
-            stats[b]++;
-            total++;
+            dist[b]++;
+            edgePixels++;
         }
     }
+    assert(i === pw * ph - 1, "Bad index value");
 
-    stats.total = total;
-
-    return stats;
+    return [blackPixels, edgePixels, dist];
 }
 
 function colouriseBuffer(iterationData, colourData)

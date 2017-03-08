@@ -240,7 +240,7 @@ function setStatusStarted(phase)
         error("Unknown phase: " + phase);
 }
 
-function setStatusFinished(phase, pixels, time)
+function setStatusFinished(phase, time, stats)
 {
     let elems = [];
     let pw = canvas.width;
@@ -263,7 +263,7 @@ function setStatusFinished(phase, pixels, time)
         elems.push(`Increased max iterations to ${params.maxIterations},`);
     }
 
-    let plotted = (100 * pixels / (pw * ph)).toPrecision(3);
+    let plotted = (100 * stats.pixelsPlotted / stats.totalPixels).toPrecision(3);
     elems.push(`${plotted}% of pixels calculated`);
 
     let ms = time.toPrecision(3);

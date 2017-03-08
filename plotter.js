@@ -13,7 +13,7 @@ let totalPixels;
 
 let regionQueue = [];
 
-let plotterStats;
+let plotterStats = null;
 
 function initPlotter()
 {
@@ -78,9 +78,9 @@ function processMessageFromWorker(event)
         break;
     case "plotRegionFinished":
         noteWorkerIdle(this);
-        assert(event.data.length === 5, "Bad response from plotRegion");
-        let [, region, buffer, pixels, stats] = event.data;
-        plotRegionFinished(region, buffer, pixels, stats);
+        assert(event.data.length === 4, "Bad response from plotRegion");
+        let [, region, buffer, stats] = event.data;
+        plotRegionFinished(region, buffer, stats);
         break;
     default:
         error("Unrecognised reply from worker: " +
@@ -159,8 +159,6 @@ function tileImage()
             regionQueue.push([x0, y0, x1, y1]);
         }
     }
-
-    totalPixels = 0;
 }
 
 function dispatchWorkers()
@@ -169,7 +167,7 @@ function dispatchWorkers()
         plotRegionOnWorker(regionQueue.shift());
 }
 
-function plotRegionFinished(region, buffer, pixels, stats)
+function plotRegionFinished(region, buffer, stats)
 {
     let [x0, y0, x1, y1] = region;
     assert(x1 > x0 && y1 > y0, "plotRegionFinished got bad region");
@@ -193,13 +191,12 @@ function plotRegionFinished(region, buffer, pixels, stats)
     let context = plotterCanvas.getContext("2d");
     context.putImageData(image, x0, y0);
 
-    totalPixels += pixels;
     accumulateStats(stats);
 
     if (busyWorkers.length === 0) {
         let endTime = performance.now();
-        plotterEndCallback(plotterPhase, totalPixels, endTime - startTime, plotterStats);
-        if (shouldIncreaseIterations(stats)) {
+        plotterEndCallback(plotterPhase, endTime - startTime, plotterStats);
+        if (shouldIncreaseIterations(plotterStats)) {
             params.maxIterations *= 2;
             doPlotImage("increaseIterations");
         } else {
@@ -215,13 +212,19 @@ function accumulateStats(stats)
         return;
     }
 
-    plotterStats.total += stats.total;
-    for (let i = 0; i < stats.length; i++)
-        plotterStats[i] += stats[i];
+    plotterStats.totalPixels += stats.totalPixels;
+    plotterStats.pixelsPlotted += stats.pixelsPlotted;
+    plotterStats.blackPixels += stats.blackPixels;
+    plotterStats.edgePixels += stats.edgePixels;
+    for (let i = 0; i < stats.edgeDist.length; i++)
+        plotterStats.edgeDist[i] += stats.edgeDist[i];
 }
 
 function shouldIncreaseIterations(stats)
 {
-    return params.autoIterations &&
-           stats[stats.length - 1] / stats.total > 0.15;
+    if (!params.autoIterations)
+        return false;
+
+    let edgeDist = stats.edgeDist;
+    return edgeDist[edgeDist.length - 1] / stats.edgePixels > 0.2;
 }

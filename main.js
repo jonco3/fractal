@@ -19,7 +19,7 @@ function init()
             size_cy: 2.0
         },
         autoIterations: true,
-        antialias: true,
+        antialias: 3,
         maxIterations: 256,
         plotter: "subdivide",
         threads: defaultThreadCount()
@@ -265,7 +265,7 @@ function setStatusFinished(phase, time, stats)
     } else if (phase === "increaseIterations") {
         elems.push(`Increased max iterations to ${params.maxIterations},`);
     } else if (phase === "antialias") {
-        elems.push(`Antialiased`);
+        elems.push(`Antialiased to factor ${params.antialias},`);
     }
 
     let plotted = (100 * stats.pixelsPlotted / stats.totalPixels).toPrecision(3);

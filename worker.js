@@ -249,7 +249,7 @@ function antialias(pw, ph, buffer)
     let imageData = new Uint8ClampedArray(buffer);
     let wordView = new Uint32Array(buffer);
 
-    let subPixelFactor = 2;
+    let subPixelFactor = params.antialias;
     let subPixelScale = coordsScale / subPixelFactor;
     let subPixelOffset = subPixelScale / 2 - coordsScale / 2;
     let subPixelCount = subPixelFactor * subPixelFactor;

@@ -10,30 +10,34 @@ function error(message)
 
 onmessage = (event) => {
     switch(event.data[0]) {
-    case "test":
-        break;
-    case "plotRegion":
-        assert(event.data.length === 3, "Bad plotRegion request");
-        params = event.data[1];
-        let region = event.data[2];
-        let [buffer, stats] = plotRegion(region);
-        postMessage(["plotRegionFinished", region, buffer, stats], [buffer]);
-        break;
-    default:
-        error("Unrecognised request: " + JSON.stringify(event.data));
+        case "test": {
+            break;
+        }
+        case "plotRegion": {
+            assert(event.data.length === 3, "Bad plotRegion request");
+            params = event.data[1];
+            let region = event.data[2];
+            let [buffer, stats] = plotRegion(region);
+            postMessage(["plotRegionFinished", region, buffer, stats], [buffer]);
+            break;
+        }
+        case "antialiasRegion": {
+            assert(event.data.length === 4, "Bad antialiasRegion request");
+            params = event.data[1];
+            let [, , region, buffer] = event.data;
+            let pixelsPlotted = antialiasRegion(region, buffer);
+            postMessage(["plotRegionFinished", region, buffer, pixelsPlotted], [buffer]);
+            break;
+        }
+        default: {
+            error("Unrecognised request: " + JSON.stringify(event.data));
+        }
     }
 };
 
 function plotRegion(region)
 {
-    let [x0, y0, x1, y1] = region;
-    assert(x1 > x0 && y1 > y0, "plotRegion got bad region");
-    let pw = x1 - x0;
-    let ph = y1 - y0;
-
-    updateCoordsScale();
-    centrePixelX -= x0;
-    centrePixelY -= y0;
+    let [pw, ph] = initRegion(region);
 
     let buffer = new ArrayBuffer(pw * ph * 4);
     let iterationData = new Uint32Array(buffer);
@@ -46,6 +50,28 @@ function plotRegion(region)
     colouriseBuffer(iterationData, colourData);
 
     return [buffer, stats];
+}
+
+function antialiasRegion(region, buffer)
+{
+    let [pw, ph] = initRegion(region);
+    let pixelsPlotted = antialias(pw, ph, buffer);
+    return {
+        totalPixels: pw * ph,
+        pixelsPlotted: pixelsPlotted
+    };
+}
+
+function initRegion(region)
+{
+    let [x0, y0, x1, y1] = region;
+    assert(x1 > x0 && y1 > y0, "initRegion got bad region");
+
+    updateCoordsScale();
+    centrePixelX -= x0;
+    centrePixelY -= y0;
+
+    return [x1 - x0, y1 - y0];
 }
 
 function plotterFunc()
@@ -216,6 +242,63 @@ function plotDivide(pw, ph, buffer) {
 
     recurse(0, 0, pw, ph);
     return pixels;
+}
+
+function antialias(pw, ph, buffer)
+{
+    let imageData = new Uint8ClampedArray(buffer);
+    let wordView = new Uint32Array(buffer);
+
+    let subPixelFactor = 2;
+    let subPixelScale = coordsScale / subPixelFactor;
+    let subPixelOffset = subPixelScale / 2 - coordsScale / 2;
+    let subPixelCount = subPixelFactor * subPixelFactor;
+
+    function hasDifferentNeighbour(px, py, i) {
+        let v = wordView[i];
+        if (px > 0 && wordView[i - 1] !== v)
+            return true;
+        if (py > 0 && wordView[i - pw] !== v)
+            return true;
+        if (px < pw - 1 && wordView[i + 1] !== v)
+            return true;
+        if (py < ph - 1 && wordView[i + pw] !== v)
+            return true;
+        return false;
+    }
+
+    let pixelsPlotted = 0;
+    let i = 0;
+    let pixelData = new Uint8ClampedArray(4);
+    for (let py = 0; py < ph; py++) {
+        for (let px = 0; px < pw; px++) {
+            if (hasDifferentNeighbour(px, py, i)) {
+                let cy = complexCoordForPixelY(py) + subPixelOffset;
+                let tr = 0;
+                let tg = 0;
+                let tb = 0;
+                for (let sy = 0; sy < subPixelFactor; sy++) {
+                    let cx = complexCoordForPixelX(px) + subPixelOffset;
+                    for (let sx = 0; sx < subPixelFactor; sx++) {
+                        let r = iterations(cx, cy);
+                        colourisePoint(r, pixelData, 0);
+                        tr += pixelData[0];
+                        tg += pixelData[1];
+                        tb += pixelData[2];
+                        cx += subPixelScale;
+                    }
+                    cy += subPixelScale;
+                }
+                let j = i * 4;
+                imageData[j + 0] = Math.floor(tr / subPixelCount);
+                imageData[j + 1] = Math.floor(tg / subPixelCount);
+                imageData[j + 2] = Math.floor(tb / subPixelCount);
+                pixelsPlotted++;
+            }
+            i++;
+        }
+    }
+    return pixelsPlotted;
 }
 
 function iterations(cx, cy)

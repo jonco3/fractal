@@ -19,6 +19,7 @@ function init()
             size_cy: 2.0
         },
         autoIterations: true,
+        antialias: true,
         maxIterations: 256,
         plotter: "subdivide",
         threads: defaultThreadCount()
@@ -236,6 +237,8 @@ function setStatusStarted(phase)
         addMessage("Plotting...");
     else if (phase === "increaseIterations")
         addMessage("Increasing iterations...");
+    else if (phase === "antialias")
+        addMessage("Antialiasing...");
     else
         error("Unknown phase: " + phase);
 }
@@ -261,6 +264,8 @@ function setStatusFinished(phase, time, stats)
         elems.push(`max iterations ${params.maxIterations},`);
     } else if (phase === "increaseIterations") {
         elems.push(`Increased max iterations to ${params.maxIterations},`);
+    } else if (phase === "antialias") {
+        elems.push(`Antialiased`);
     }
 
     let plotted = (100 * stats.pixelsPlotted / stats.totalPixels).toPrecision(3);

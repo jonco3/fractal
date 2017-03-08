@@ -90,7 +90,22 @@ function processMessageFromWorker(event)
 
 function plotRegionOnWorker(region)
 {
-    getIdleWorker().postMessage(["plotRegion", params, region]);
+    let worker = getIdleWorker();
+    if (plotterPhase !== "antialias") {
+        worker.postMessage(["plotRegion", params, region]);
+    } else {
+        let buffer = getImageData(region).buffer;
+        worker.postMessage(["antialiasRegion", params, region, buffer], [buffer]);
+    }
+}
+
+function getImageData(region)
+{
+    let [x0, y0, x1, y1] = region;
+    assert(x1 > x0 && y1 > y0, "getImageData got bad region");
+    let context = plotterCanvas.getContext("2d");
+    let imageData = context.getImageData(x0, y0, x1 - x0, y1 - y0);
+    return imageData.data;
 }
 
 function maybeCancelWorkers()
@@ -196,9 +211,13 @@ function plotRegionFinished(region, buffer, stats)
     if (busyWorkers.length === 0) {
         let endTime = performance.now();
         plotterEndCallback(plotterPhase, endTime - startTime, plotterStats);
-        if (shouldIncreaseIterations(plotterStats)) {
-            params.maxIterations *= 2;
-            doPlotImage("increaseIterations");
+        if (plotterPhase !== "antialias") {
+            if (shouldIncreaseIterations(plotterStats)) {
+                params.maxIterations *= 2;
+                doPlotImage("increaseIterations");
+            } else if (params.antialias) {
+                doPlotImage("antialias");
+            }
         } else {
             plotterCanvas = null;
         }
@@ -214,10 +233,13 @@ function accumulateStats(stats)
 
     plotterStats.totalPixels += stats.totalPixels;
     plotterStats.pixelsPlotted += stats.pixelsPlotted;
-    plotterStats.blackPixels += stats.blackPixels;
-    plotterStats.edgePixels += stats.edgePixels;
-    for (let i = 0; i < stats.edgeDist.length; i++)
-        plotterStats.edgeDist[i] += stats.edgeDist[i];
+
+    if (plotterPhase !== "antialias") {
+        plotterStats.blackPixels += stats.blackPixels;
+        plotterStats.edgePixels += stats.edgePixels;
+        for (let i = 0; i < stats.edgeDist.length; i++)
+            plotterStats.edgeDist[i] += stats.edgeDist[i];
+    }
 }
 
 function shouldIncreaseIterations(stats)

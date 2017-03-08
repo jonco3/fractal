@@ -232,27 +232,36 @@ function runPlotter()
 
 function setStatusStarted(phase)
 {
-    addMessage(phase + "...");
+    if (phase === "main")
+        addMessage("Plotting...");
+    else if (phase === "increaseIterations")
+        addMessage("Increasing iterations...");
+    else
+        error("Unknown phase: " + phase);
 }
 
-function setStatusFinished(pixels, time)
+function setStatusFinished(phase, pixels, time)
 {
     let elems = [];
-
-    elems.push(`Mandelbrot set`)
-
-    let cx = params.coords.centre_cx.toPrecision(4);
-    let cy = params.coords.centre_cy.toPrecision(4);
-    elems.push(`centered on (${cx}, ${cy}),`)
-
-    let ch = params.coords.size_cy.toPrecision(4);
-    elems.push(`height ${ch},`);
-
-    elems.push(`max iterations ${params.maxIterations},`);
-
     let pw = canvas.width;
     let ph = canvas.height;
-    elems.push(`image size ${pw} x ${ph},`);
+
+    if (phase === "main") {
+        elems.push(`Mandelbrot set`);
+
+        let cx = params.coords.centre_cx.toPrecision(4);
+        let cy = params.coords.centre_cy.toPrecision(4);
+        elems.push(`centered on (${cx}, ${cy}),`)
+
+        let ch = params.coords.size_cy.toPrecision(4);
+        elems.push(`height ${ch},`);
+
+        elems.push(`image size ${pw} x ${ph},`);
+
+        elems.push(`max iterations ${params.maxIterations},`);
+    } else if (phase === "increaseIterations") {
+        elems.push(`Increased max iterations to ${params.maxIterations},`);
+    }
 
     let plotted = (100 * pixels / (pw * ph)).toPrecision(3);
     elems.push(`${plotted}% of pixels calculated`);

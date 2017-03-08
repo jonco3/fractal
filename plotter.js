@@ -7,6 +7,7 @@ let plotterEndCallback;
 let idleWorkers = [];
 let busyWorkers = [];
 
+let plotterPhase;
 let startTime;
 let totalPixels;
 
@@ -109,11 +110,12 @@ function plotImage(canvas, startCallback, endCallback)
     plotterEndCallback = endCallback;
 
     maybeCancelWorkers();
-    doPlotImage("Plotting");
+    doPlotImage("main");
 }
 
 function doPlotImage(phase)
 {
+    plotterPhase = phase;
     plotterStartCallback(phase);
     startTime = performance.now();
     plotterStats = null;
@@ -196,10 +198,10 @@ function plotRegionFinished(region, buffer, pixels, stats)
 
     if (busyWorkers.length === 0) {
         let endTime = performance.now();
-        plotterEndCallback(totalPixels, endTime - startTime, plotterStats);
+        plotterEndCallback(plotterPhase, totalPixels, endTime - startTime, plotterStats);
         if (shouldIncreaseIterations(stats)) {
             params.maxIterations *= 2;
-            doPlotImage("Increase iterations");
+            doPlotImage("increaseIterations");
         } else {
             plotterCanvas = null;
         }

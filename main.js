@@ -4,6 +4,8 @@
 let canvas;
 let canvasScale;
 
+let lastMessage = null;
+
 function init()
 {
     params = {
@@ -230,8 +232,8 @@ function runPlotter()
 
 function setStatusPlotting()
 {
-    let status = document.getElementById("status");
-    status.textContent = "Plotting...";
+    clearMessages();
+    addMessage("Plotting...");
 }
 
 function setStatusFinished(pixels, time)
@@ -259,6 +261,26 @@ function setStatusFinished(pixels, time)
     let ms = time.toPrecision(3);
     elems.push(`in ${ms} mS`);
 
-    let status = document.getElementById("status");
-    status.textContent = elems.join(" ");
+    updateMessage(elems.join(" "));
+}
+
+function clearMessages()
+{
+    let messages = document.getElementById("messages");
+    while (messages.firstChild)
+        messages.removeChild(messages.firstChild);
+    lastMessage = null;
+}
+
+function addMessage(text)
+{
+    lastMessage = document.createElement("p");
+    document.getElementById("messages").appendChild(lastMessage);
+    updateMessage(text);
+}
+
+function updateMessage(text)
+{
+    assert(lastMessage, "No message to update");
+    lastMessage.textContent = text;
 }

@@ -164,12 +164,6 @@ function plotRegionFinished(region, buffer, pixels, stats)
     let ph = y1 - y0;
     assert(buffer.byteLength === pw * ph * 4, "Bad buffer size");
 
-    if (shouldIncreaseIterations(stats)) {
-        params.maxIterations *= 2;
-        plotImage(plotterCanvas, plotterEndCallback);
-        return;
-    }
-
     dispatchWorkers();
 
     let colourData = new Uint8ClampedArray(buffer);
@@ -189,9 +183,14 @@ function plotRegionFinished(region, buffer, pixels, stats)
     accumulateStats(stats);
 
     if (busyWorkers.length === 0) {
-        let endTime = performance.now();
-        plotterCanvas = null;
-        plotterEndCallback(totalPixels, endTime - startTime, plotterStats);
+        if (shouldIncreaseIterations(stats)) {
+            params.maxIterations *= 2;
+            plotImage(plotterCanvas, plotterEndCallback);
+        } else {
+            let endTime = performance.now();
+            plotterCanvas = null;
+            plotterEndCallback(totalPixels, endTime - startTime, plotterStats);
+        }
     }
 }
 

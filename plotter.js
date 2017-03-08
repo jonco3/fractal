@@ -1,6 +1,7 @@
 /*-*- Mode: JS; tab-width: 4 -*-*/
 
 let plotterCanvas = null;
+let plotterStartCallback;
 let plotterEndCallback;
 
 let idleWorkers = [];
@@ -101,19 +102,32 @@ function maybeCancelWorkers()
     createWorkers();
 }
 
-function plotImage(canvas, endCallback)
+function plotImage(canvas, startCallback, endCallback)
+{
+    plotterCanvas = canvas;
+    plotterStartCallback = startCallback;
+    plotterEndCallback = endCallback;
+
+    maybeCancelWorkers();
+    doPlotImage("Plotting");
+}
+
+function doPlotImage(phase)
+{
+    plotterStartCallback(phase);
+    startTime = performance.now();
+    plotterStats = null;
+    tileImage();
+    dispatchWorkers();
+}
+
+function tileImage()
 {
     // Break up the image into (mostly) square tiles and queue the regions to be
     // plotted.
 
     const minTileSidePixels = 100;
     const maxTilesPerSide = 4;
-
-    plotterCanvas = canvas;
-    plotterEndCallback = endCallback;
-    plotterStats = null;
-
-    maybeCancelWorkers();
 
     let pw = params.image.width;
     let ph = params.image.height;
@@ -145,8 +159,6 @@ function plotImage(canvas, endCallback)
     }
 
     totalPixels = 0;
-    startTime = performance.now();
-    dispatchWorkers();
 }
 
 function dispatchWorkers()
@@ -183,13 +195,13 @@ function plotRegionFinished(region, buffer, pixels, stats)
     accumulateStats(stats);
 
     if (busyWorkers.length === 0) {
+        let endTime = performance.now();
+        plotterEndCallback(totalPixels, endTime - startTime, plotterStats);
         if (shouldIncreaseIterations(stats)) {
             params.maxIterations *= 2;
-            plotImage(plotterCanvas, plotterEndCallback);
+            doPlotImage("Increase iterations");
         } else {
-            let endTime = performance.now();
             plotterCanvas = null;
-            plotterEndCallback(totalPixels, endTime - startTime, plotterStats);
         }
     }
 }

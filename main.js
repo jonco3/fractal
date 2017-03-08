@@ -226,14 +226,13 @@ function zoomAt(px, py)
 
 function runPlotter()
 {
-    setStatusPlotting();
-    plotImage(canvas, setStatusFinished);
+    clearMessages();
+    plotImage(canvas, setStatusStarted, setStatusFinished);
 }
 
-function setStatusPlotting()
+function setStatusStarted(phase)
 {
-    clearMessages();
-    addMessage("Plotting...");
+    addMessage(phase + "...");
 }
 
 function setStatusFinished(pixels, time)

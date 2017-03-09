@@ -13,6 +13,11 @@ function init()
             width: undefined,
             height: undefined,
         },
+        fractal: {
+            name: "mandelbrot",
+            param_cx: 0.0,
+            param_cy: 0.0
+        },
         coords: {
             centre_cx: -0.5,
             centre_cy: 0.0,
@@ -30,6 +35,7 @@ function init()
     listenForCanvasClickEvents();
     listenForPopStateEvents();
     listenForUpdateClickEvents();
+    listenForFractalChangeEvents();
     maybeSetParamsFromQueryString();
     updateCoordsScale();
     updateHistoryState();
@@ -90,17 +96,43 @@ function listenForUpdateClickEvents()
     });
 }
 
+function listenForFractalChangeEvents()
+{
+    let fractal = document.forms[0].elements["fractal"];
+    let param = document.getElementById("param");
+    fractal.addEventListener("change", (event) => {
+        setFractalParamVisibility(fractal.value);
+    });
+}
+
 function setParamsFromForm()
 {
     let form = document.forms[0];
+
+    let fractal = form.elements["fractal"].value;
+    if (fractal !== "mandelbrot" && fractal !== "julia")
+        error("Bad fractal name: " + fractal);
+
+    let param_cx = 0.0;
+    let param_cy = 0.0;
+    if (fractal === "julia") {
+        param_cx = parseFloat(form.elements["param_cx"].value);
+        param_cy = parseFloat(form.elements["param_cy"].value);
+    }
+    if (Number.isNaN(param_cx) || Number.isNaN(param_cy))
+        error("Bad param value");
+
     let plotter = form.elements["plotter"].value;
     if (plotter !== "subdivide" && plotter !== "fill" && plotter !== "naive")
         error("Bad plotter name: " + plotter)
 
-    let threads = +form.elements["threads"].value;
+    let threads = parseInt(form.elements["threads"].value);
     if (threads < 1 || threads > 16)
         error("Bad thread count: " + threads);
 
+    params.fractal.name = fractal;
+    params.fractal.param_cx = param_cx;
+    params.fractal.param_cy = param_cy;
     params.plotter = plotter;
     params.threads = threads;
 }
@@ -108,8 +140,22 @@ function setParamsFromForm()
 function updateFormFromParams()
 {
     let form = document.forms[0];
+    form.elements["fractal"].value = params.fractal.name;
+    form.elements["param_cx"].value = params.fractal.param_cx;
+    form.elements["param_cy"].value = params.fractal.param_cy;
     form.elements["plotter"].value = params.plotter;
     form.elements["threads"].value = params.threads;
+    setFractalParamVisibility(params.fractal.name);
+}
+
+function setFractalParamVisibility(fractal)
+{
+    let param = document.getElementById("param");
+    if (fractal === "julia") {
+        param.style.visibility = "visible";
+    } else {
+        param.style.visibility = "hidden";
+    }
 }
 
 function maybeSetParamsFromQueryString()
@@ -119,32 +165,50 @@ function maybeSetParamsFromQueryString()
         return;
 
     let elements = query.substring(1).split("&");
-    if (elements.length !== 4) {
+    if (elements.length !== 5 && elements.length !== 7) {
         alert("Bad query string (wrong number of elements)");
         return;
     }
 
-    function parseElement(name, parse, s)
+    function parseElement(name, parseFunc = s => s)
     {
+        if (elements.length === 0)
+            return NaN;
+
+        let s = elements.shift();
         if (s.substring(0, 1) !== name || s.length <= 2)
             return NaN;
 
-        return parse(s.substring(2));
+        return parseFunc(s.substring(2));
     }
 
-    let x = parseElement("x", parseFloat, elements[0]);
-    let y = parseElement("y", parseFloat, elements[1]);
-    let h = parseElement("h", parseFloat, elements[2]);
-    let i = parseElement("i", parseInt, elements[3]);
-    if (Number.isNaN(x) ||
+    let f = parseElement("f");
+    let x = parseElement("x", parseFloat);
+    let y = parseElement("y", parseFloat);
+    let h = parseElement("h", parseFloat);
+    let i = parseElement("i", parseInt);
+    let p = 0.0;
+    let q = 0.0;
+    if (f === "julia") {
+        p = parseElement("p", parseFloat);
+        q = parseElement("q", parseFloat);
+    }
+    if ((f !== "mandelbrot" && f !== "julia") ||
+        Number.isNaN(x) ||
         Number.isNaN(y) ||
         Number.isNaN(h) ||
-        Number.isNaN(i))
+        Number.isNaN(i) ||
+        Number.isNaN(p) ||
+        Number.isNaN(q))
     {
         alert("Bad query parameter");
         return;
     }
 
+
+    params.fractal.name = f;
+    params.fractal.param_cx = p;
+    params.fractal.param_cy = q;
     params.coords.centre_cx = x;
     params.coords.centre_cy = y;
     params.coords.size_cy = h;
@@ -154,11 +218,16 @@ function maybeSetParamsFromQueryString()
 function queryStringFromParams()
 {
     let a = [
+        `f=${params.fractal.name}`,
         `x=${params.coords.centre_cx}`,
         `y=${params.coords.centre_cy}`,
         `h=${params.coords.size_cy}`,
         `i=${params.maxIterations}`
     ];
+    if (params.fractal.name === "julia") {
+        a.push(`p=${params.fractal.param_cx}`);
+        a.push(`q=${params.fractal.param_cy}`);
+    }
     return a.join("&");
 }
 

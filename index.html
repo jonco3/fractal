@@ -10,19 +10,35 @@
   <body onload="init()">
     <div>
       <form>
-        <label>
-          Plotter:
-          <select name="plotter">
-            <option value="subdivide">Subdivide</option>
-            <option value="fill">Fill</option>
-            <option value="naive">Naive</option>
-          </select>
-        </label>
-        <label>
-          Threads:
-          <input name="threads" type="number" size="2" style='width:3em'
-                 value="1" step="1" min="1" max="16"></input>
-        </label>
+        <div>
+          <label>
+            Fractal:
+            <select name="fractal">
+              <option value="mandelbrot">Mandelbrot</option>
+              <option value="julia">Julia</option>
+            </select>
+          </label>
+          <label id="param" style="visibility: hidden">
+            Parameter:
+            <input name="param_cx" type="number" value="0.65"></input>
+            <input name="param_cy" type="number" value="0.0"></input>
+          </label>
+        </div>
+        <div>
+          <label>
+            Plotter:
+            <select name="plotter">
+              <option value="subdivide">Subdivide</option>
+              <option value="fill">Fill</option>
+              <option value="naive">Naive</option>
+            </select>
+          </label>
+          <label>
+            Threads:
+            <input name="threads" type="number" size="2" style='width:3em'
+                   value="1" step="1" min="1" max="16"></input>
+          </label>
+        </div>
         <input id="update" type="button" value="Update"></input>
       </form>
       <p>Double-click to zoom, use the back button to go back</p>

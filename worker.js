@@ -92,7 +92,14 @@ function plotterFunc()
 
 function iterationFunc()
 {
-    return mandelbrot;
+    switch (params.fractal.name) {
+    case "mandelbrot":
+        return mandelbrot;
+    case "julia":
+        return julia;
+    default:
+        error("Unknown kind: " + params.fractal.name);
+    }
 }
 
 function plotAll(iterations, pw, ph, buffer)
@@ -310,7 +317,7 @@ function antialias(iterations, pw, ph, buffer)
 
 function mandelbrot(cx, cy)
 {
-    // Returns |itererations + 1| or zero if the point does not escape.
+    // Returns |itererations + 1| or one if the point does not escape.
 
     let zx = cx;
     let zy = cy;
@@ -323,6 +330,27 @@ function mandelbrot(cx, cy)
 
         zy = 2 * zx * zy + cy;
         zx = xx - yy + cx;
+        i++;
+    }
+
+    return 1;
+}
+
+function julia(cx, cy)
+{
+    // Returns |itererations + 1| or one if the point does not escape.
+
+    let zx = cx;
+    let zy = cy;
+    let i = 2;
+    while (i < params.maxIterations) {
+        let xx = zx * zx;
+        let yy = zy * zy;
+        if (xx + yy >= 4)
+            return i;
+
+        zy = 2 * zx * zy + params.fractal.param_cx;
+        zx = xx - yy + params.fractal.param_cy;
         i++;
     }
 

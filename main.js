@@ -334,7 +334,7 @@ function setStatusFinished(phase, time, stats)
     } else if (phase === "increaseIterations") {
         elems.push(`Increased max iterations to ${params.maxIterations},`);
     } else if (phase === "antialias") {
-        elems.push(`Antialiased to factor ${params.antialias},`);
+        elems.push(`Antialiased, ${params.antialias} x ${params.antialias} subpixels,`);
     }
 
     let plotted = (100 * stats.pixelsPlotted / stats.totalPixels).toPrecision(3);

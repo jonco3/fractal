@@ -24,10 +24,17 @@ function init()
             size_cy: 2.0
         },
         autoIterations: true,
-        antialias: 3,
         maxIterations: 256,
+        colours: {
+            logarithmic: true,
+            scale: 8,
+            rOffset: 0.0,
+            gOffset: 0.3125,
+            bOffset: 0.625,
+        },
         plotter: "subdivide",
-        threads: defaultThreadCount()
+        threads: defaultThreadCount(),
+        antialias: 3
     };
 
     canvas = document.getElementById("canvas");
@@ -36,6 +43,7 @@ function init()
     listenForPopStateEvents();
     listenForUpdateClickEvents();
     listenForFractalChangeEvents();
+    listenForColourMapChangeEvents();
     maybeSetParamsFromQueryString();
     updateCoordsScale();
     updateHistoryState();
@@ -105,6 +113,38 @@ function listenForFractalChangeEvents()
     });
 }
 
+function listenForColourMapChangeEvents()
+{
+    let form = document.forms[0];
+
+    function connectSliderAndValue(name) {
+        let slider = form.elements[name + "Slider"];
+        let value = form.elements[name + "Value"];
+        assert(slider && value, "Can't find elements for: " + name);
+
+        function listener() {
+            value.value = slider.value;
+        }
+
+        listener();
+        slider.addEventListener("change", listener);
+        slider.addEventListener("input", listener);
+    }
+
+    connectSliderAndValue("colourScale");
+    connectSliderAndValue("redOffset");
+    connectSliderAndValue("greenOffset");
+    connectSliderAndValue("blueOffset");
+}
+
+function parseBool(s) {
+    if (s === "1")
+        return true;
+    if (s === "0")
+        return false;
+    return NaN;
+}
+
 function setParamsFromForm()
 {
     let form = document.forms[0];
@@ -122,6 +162,20 @@ function setParamsFromForm()
     if (Number.isNaN(param_cx) || Number.isNaN(param_cy))
         error("Bad param value");
 
+    let logColour = parseBool(form.elements["logColour"].value);
+    if (Number.isNaN(logColour))
+        error("Bad logColour value");
+
+    let colourScale = parseFloat(form.elements["colourScaleSlider"].value);
+    if (Number.isNaN(colourScale))
+        error("Bad colourScale value");
+    
+    let redOffset = parseFloat(form.elements["redOffsetSlider"].value);
+    let greenOffset = parseFloat(form.elements["greenOffsetSlider"].value);
+    let blueOffset = parseFloat(form.elements["blueOffsetSlider"].value);
+    if (Number.isNaN(redOffset) || Number.isNaN(greenOffset) || Number.isNaN(blueOffset))
+        error("Bad colour offset value");
+
     let plotter = form.elements["plotter"].value;
     if (plotter !== "subdivide" && plotter !== "fill" && plotter !== "naive")
         error("Bad plotter name: " + plotter)
@@ -133,6 +187,11 @@ function setParamsFromForm()
     params.fractal.name = fractal;
     params.fractal.param_cx = param_cx;
     params.fractal.param_cy = param_cy;
+    params.colours.logarithmic = logColour;
+    params.colours.scale = colourScale;
+    params.colours.rOffset = redOffset;
+    params.colours.gOffset = greenOffset;
+    params.colours.bOffset = blueOffset;
     params.plotter = plotter;
     params.threads = threads;
 }
@@ -143,6 +202,15 @@ function updateFormFromParams()
     form.elements["fractal"].value = params.fractal.name;
     form.elements["param_cx"].value = params.fractal.param_cx;
     form.elements["param_cy"].value = params.fractal.param_cy;
+    form.elements["logColour"].value = params.colours.logarithmic ? "1" : "0";
+    form.elements["colourScaleSlider"].value = params.colours.scale;
+    form.elements["colourScaleValue"].value = params.colours.scale;
+    form.elements["redOffsetSlider"].value = params.colours.rOffset;
+    form.elements["redOffsetValue"].value = params.colours.rOffset;
+    form.elements["greenOffsetSlider"].value = params.colours.gOffset;
+    form.elements["greenOffsetValue"].value = params.colours.gOffset;
+    form.elements["blueOffsetSlider"].value = params.colours.bOffset;
+    form.elements["blueOffsetValue"].value = params.colours.bOffset;
     form.elements["plotter"].value = params.plotter;
     form.elements["threads"].value = params.threads;
     setFractalParamVisibility(params.fractal.name);
@@ -165,24 +233,33 @@ function maybeSetParamsFromQueryString()
         return;
 
     let elements = query.substring(1).split("&");
-    if (elements.length !== 5 && elements.length !== 7) {
-        alert("Bad query string (wrong number of elements)");
-        return;
-    }
+
+    let ok = true;
 
     function parseElement(name, parseFunc = s => s)
     {
-        if (elements.length === 0)
-            return NaN;
+        let v = NaN;
+        if (elements.length > 0) {
+            let s = elements.shift();
+            let match = name + "=";
+            if (s.startsWith(match) && s.length > match.length)
+                v = parseFunc(s.substring(match.length));
+        }
 
-        let s = elements.shift();
-        if (s.substring(0, 1) !== name || s.length <= 2)
-            return NaN;
+        if (v === NaN) {
+            alert("Bad query parameter: " + name);
+            ok = false;
+        }
 
-        return parseFunc(s.substring(2));
+        return v;
     }
 
     let f = parseElement("f");
+    if (f !== "mandelbrot" && f !== "julia") {
+        alert("Unknown fractal: " + f);
+        return;
+    }
+
     let x = parseElement("x", parseFloat);
     let y = parseElement("y", parseFloat);
     let h = parseElement("h", parseFloat);
@@ -193,18 +270,14 @@ function maybeSetParamsFromQueryString()
         p = parseElement("p", parseFloat);
         q = parseElement("q", parseFloat);
     }
-    if ((f !== "mandelbrot" && f !== "julia") ||
-        Number.isNaN(x) ||
-        Number.isNaN(y) ||
-        Number.isNaN(h) ||
-        Number.isNaN(i) ||
-        Number.isNaN(p) ||
-        Number.isNaN(q))
-    {
-        alert("Bad query parameter");
-        return;
-    }
+    let l = parseElement("l", parseBool);
+    let s = parseElement("s", parseFloat);
+    let r = parseElement("r", parseFloat);
+    let g = parseElement("g", parseFloat);
+    let b = parseElement("b", parseFloat);
 
+    if (!ok)
+        return;
 
     params.fractal.name = f;
     params.fractal.param_cx = p;
@@ -213,21 +286,36 @@ function maybeSetParamsFromQueryString()
     params.coords.centre_cy = y;
     params.coords.size_cy = h;
     params.maxIterations = i;
+    params.colours.logarithmic = l;
+    params.colours.scale = s;
+    params.colours.rOffset = r;
+    params.colours.gOffset = g;
+    params.colours.bOffset = b;
 }
 
 function queryStringFromParams()
 {
-    let a = [
-        `f=${params.fractal.name}`,
-        `x=${params.coords.centre_cx}`,
-        `y=${params.coords.centre_cy}`,
-        `h=${params.coords.size_cy}`,
-        `i=${params.maxIterations}`
-    ];
-    if (params.fractal.name === "julia") {
-        a.push(`p=${params.fractal.param_cx}`);
-        a.push(`q=${params.fractal.param_cy}`);
+    let a = [];
+
+    function add(name, value) {
+        a.push(`${name}=${value}`);
     }
+
+    add("f", params.fractal.name);
+    add("x", params.coords.centre_cx);
+    add("y", params.coords.centre_cy);
+    add("h", params.coords.size_cy);
+    add("i", params.maxIterations);
+    if (params.fractal.name === "julia") {
+        add("p", params.fractal.param_cx);
+        add("q", params.fractal.param_cy);
+    }
+    add("l", params.colours.logarithmic ? 1 : 0);
+    add("s", params.colours.scale);
+    add("r", params.colours.rOffset);
+    add("g", params.colours.gOffset);
+    add("b", params.colours.bOffset);
+
     return a.join("&");
 }
 

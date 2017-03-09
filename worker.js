@@ -357,10 +357,6 @@ function julia(cx, cy)
     return 1;
 }
 
-Math.log2 = Math.log2 || function(x) {
-  return Math.log(x) * Math.LOG2E;
-};
-
 function computeStats(iterationData, pw, ph, pixelsPlotted)
 {
     // Calculate various information about the image including the distribution
@@ -379,6 +375,10 @@ function computeStats(iterationData, pw, ph, pixelsPlotted)
         edgeDist: edgeDist
     };
 }
+
+Math.log2 = Math.log2 || function(x) {
+  return Math.log(x) * Math.LOG2E;
+};
 
 function computeEdgeData(iterationData, pw, ph)
 {
@@ -436,10 +436,23 @@ function colourisePoint(r, colourData, i)
         colourData[i + 1] = 0;
         colourData[i + 2] = 0;
         colourData[i + 3] = 255;
-    } else {
-        colourData[i + 0] = r % 255;
-        colourData[i + 1] = (r + 80) % 255;
-        colourData[i + 2] = (r + 160) % 255
-        colourData[i + 3] = 255;
+        return;
     }
+
+    let s = Math.pow(2, params.colours.scale);
+    let v;
+    if (params.colours.logarithmic)
+        v = Math.log2(r) / Math.log2(s);
+    else
+        v = r / s;
+
+
+    function frac(x) {
+        return x - Math.floor(x);
+    }
+
+    colourData[i + 0] = Math.floor(frac(v + params.colours.rOffset) * 255);
+    colourData[i + 1] = Math.floor(frac(v + params.colours.gOffset) * 255);
+    colourData[i + 2] = Math.floor(frac(v + params.colours.bOffset) * 255);
+    colourData[i + 3] = 255;
 }

@@ -18,6 +18,10 @@ function assert(cond, message)
         error("Assertion failed: " + message);
 }
 
+Math.log2 = Math.log2 || function(x) {
+  return Math.log(x) * Math.LOG2E;
+};
+
 function updateCoordsScale()
 {
     coordsScale = params.coords.size_cy / params.image.height;

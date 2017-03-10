@@ -4,6 +4,8 @@ let plotterCanvas = null;
 let plotterStartCallback;
 let plotterEndCallback;
 
+let colourMap;
+
 let idleWorkers = [];
 let busyWorkers = [];
 
@@ -92,10 +94,10 @@ function plotRegionOnWorker(region)
 {
     let worker = getIdleWorker();
     if (plotterPhase !== "antialias") {
-        worker.postMessage(["plotRegion", params, region]);
+        worker.postMessage(["plotRegion", params, region, colourMap]);
     } else {
         let buffer = getImageData(region).buffer;
-        worker.postMessage(["antialiasRegion", params, region, buffer], [buffer]);
+        worker.postMessage(["antialiasRegion", params, region, colourMap, buffer], [buffer]);
     }
 }
 
@@ -125,6 +127,7 @@ function plotImage(canvas, startCallback, endCallback)
     plotterEndCallback = endCallback;
 
     maybeCancelWorkers();
+    buildColourMap();
     doPlotImage("main");
 }
 
@@ -249,4 +252,31 @@ function shouldIncreaseIterations(stats)
 
     let edgeDist = stats.edgeDist;
     return edgeDist[edgeDist.length - 1] / stats.edgePixels > 0.2;
+}
+
+function buildColourMap()
+{
+    const size = 1024;
+
+    let scale;
+    if (params.colours.logarithmic)
+        scale = 1 / params.colours.scale;
+    else
+        scale = 1 / Math.pow(2, params.colours.scale);
+
+    colourMap = {
+        size: size,
+        logarithmic: params.colours.logarithmic,
+        scale: scale,
+        r: new Uint8ClampedArray(size),
+        g: new Uint8ClampedArray(size),
+        b: new Uint8ClampedArray(size)
+    };
+
+    for (let i = 0; i < size; i++) {
+        let v = i / size;
+        colourMap.r[i] = Math.floor(frac(v + params.colours.rOffset) * 255);
+        colourMap.g[i] = Math.floor(frac(v + params.colours.gOffset) * 255);
+        colourMap.b[i] = Math.floor(frac(v + params.colours.bOffset) * 255);
+    }
 }

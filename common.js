@@ -22,6 +22,10 @@ Math.log2 = Math.log2 || function(x) {
   return Math.log(x) * Math.LOG2E;
 };
 
+function frac(x) {
+    return x - Math.floor(x);
+}
+
 function updateCoordsScale()
 {
     coordsScale = params.coords.size_cy / params.image.height;

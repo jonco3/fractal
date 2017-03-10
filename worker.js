@@ -2,6 +2,8 @@
 
 importScripts("common.js");
 
+let colourMap;
+
 function error(message)
 {
     postMessage(["error", message]);
@@ -14,17 +16,17 @@ onmessage = (event) => {
             break;
         }
         case "plotRegion": {
-            assert(event.data.length === 3, "Bad plotRegion request");
-            params = event.data[1];
-            let region = event.data[2];
+            assert(event.data.length === 4, "Bad plotRegion request");
+            let region;
+            [, params, region, colourMap] = event.data;
             let [buffer, stats] = plotRegion(region);
             postMessage(["plotRegionFinished", region, buffer, stats], [buffer]);
             break;
         }
         case "antialiasRegion": {
-            assert(event.data.length === 4, "Bad antialiasRegion request");
-            params = event.data[1];
-            let [, , region, buffer] = event.data;
+            assert(event.data.length === 5, "Bad antialiasRegion request");
+            let region, buffer;
+            [, params, region, colourMap, buffer] = event.data;
             let pixelsPlotted = antialiasRegion(region, buffer);
             postMessage(["plotRegionFinished", region, buffer, pixelsPlotted], [buffer]);
             break;
@@ -439,20 +441,13 @@ function colourisePoint(r, colourData, i)
         return;
     }
 
-    let s = Math.pow(2, params.colours.scale);
-    let v;
-    if (params.colours.logarithmic)
-        v = Math.log2(r) / Math.log2(s);
-    else
-        v = r / s;
+    if (colourMap.logarithmic)
+        r = Math.log2(r);
 
+    r = Math.floor(frac(r * colourMap.scale) * colourMap.size);
 
-    function frac(x) {
-        return x - Math.floor(x);
-    }
-
-    colourData[i + 0] = Math.floor(frac(v + params.colours.rOffset) * 255);
-    colourData[i + 1] = Math.floor(frac(v + params.colours.gOffset) * 255);
-    colourData[i + 2] = Math.floor(frac(v + params.colours.bOffset) * 255);
+    colourData[i + 0] = colourMap.r[r];
+    colourData[i + 1] = colourMap.g[r];
+    colourData[i + 2] = colourMap.b[r];
     colourData[i + 3] = 255;
 }

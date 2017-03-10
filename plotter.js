@@ -268,15 +268,22 @@ function buildColourMap()
         size: size,
         logarithmic: params.colours.logarithmic,
         scale: scale,
-        r: new Uint8ClampedArray(size),
-        g: new Uint8ClampedArray(size),
-        b: new Uint8ClampedArray(size)
+        data: new Uint32Array(size + 1),
     };
+
+    let bytes = new Uint8ClampedArray(colourMap.data.buffer);
+
+    bytes[0] = 0;
+    bytes[1] = 0;
+    bytes[2] = 0;
+    bytes[3] = 255;
 
     for (let i = 0; i < size; i++) {
         let v = i / size;
-        colourMap.r[i] = Math.floor(frac(v + params.colours.rOffset) * 255);
-        colourMap.g[i] = Math.floor(frac(v + params.colours.gOffset) * 255);
-        colourMap.b[i] = Math.floor(frac(v + params.colours.bOffset) * 255);
+        let j = (i + 1) * 4;
+        bytes[j + 0] = Math.floor(frac(v + params.colours.rOffset) * 255);
+        bytes[j + 1] = Math.floor(frac(v + params.colours.gOffset) * 255);
+        bytes[j + 2] = Math.floor(frac(v + params.colours.bOffset) * 255);
+        bytes[j + 3] = 255;
     }
 }

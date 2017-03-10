@@ -49,8 +49,8 @@ function plotRegion(region)
 
     let stats = computeStats(iterationData, pw, ph, pixelsPlotted);
 
-    let colourData = new Uint8ClampedArray(buffer);
-    colouriseBuffer(iterationData, colourData);
+    let imageData = iterationData;
+    colouriseBuffer(iterationData, imageData);
 
     return [buffer, stats];
 }
@@ -285,7 +285,8 @@ function antialias(iterations, pw, ph, buffer)
 
     let pixelsPlotted = 0;
     let i = 0;
-    let pixelData = new Uint8ClampedArray(4);
+    let pixelData = new Uint32Array(1);
+    let pixelBytes = new Uint8ClampedArray(pixelData.buffer);
     for (let py = 0; py < ph; py++) {
         for (let px = 0; px < pw; px++) {
             if (hasDifferentNeighbour(px, py, i)) {
@@ -297,10 +298,10 @@ function antialias(iterations, pw, ph, buffer)
                     let cx = complexCoordForPixelX(px) + subPixelOffset;
                     for (let sx = 0; sx < subPixelFactor; sx++) {
                         let r = iterations(cx, cy);
-                        colourisePoint(r, pixelData, 0);
-                        tr += pixelData[0];
-                        tg += pixelData[1];
-                        tb += pixelData[2];
+                        pixelData[0] = colourisePoint(r);
+                        tr += pixelBytes[0];
+                        tg += pixelBytes[1];
+                        tb += pixelBytes[2];
                         cx += subPixelScale;
                     }
                     cy += subPixelScale;
@@ -425,29 +426,20 @@ function computeEdgeData(iterationData, pw, ph)
     return [blackPixels, edgePixels, dist];
 }
 
-function colouriseBuffer(iterationData, colourData)
+function colouriseBuffer(iterationData, imageData)
 {
     for (let i = 0; i < iterationData.length; i++)
-        colourisePoint(iterationData[i], colourData, i * 4);
+        imageData[i] = colourisePoint(iterationData[i]);
 }
 
-function colourisePoint(r, colourData, i)
+function colourisePoint(r)
 {
-    if (r <= 1) {
-        colourData[i + 0] = 0;
-        colourData[i + 1] = 0;
-        colourData[i + 2] = 0;
-        colourData[i + 3] = 255;
-        return;
-    }
+    if (r <= 1)
+        return colourMap.data[0];
 
     if (colourMap.logarithmic)
         r = Math.log2(r);
 
     r = Math.floor(frac(r * colourMap.scale) * colourMap.size);
-
-    colourData[i + 0] = colourMap.r[r];
-    colourData[i + 1] = colourMap.g[r];
-    colourData[i + 2] = colourMap.b[r];
-    colourData[i + 3] = 255;
+    return colourMap.data[r + 1];
 }

@@ -41,9 +41,10 @@ function init()
     listenForResizeEvent();
     listenForCanvasClickEvents();
     listenForPopStateEvents();
-    listenForUpdateClickEvents();
+    listenForTabClickEvents();
     listenForFractalChangeEvents();
     listenForColourMapChangeEvents();
+    listenForUpdateClickEvents();
     maybeSetParamsFromQueryString();
     updateCoordsScale();
     updateHistoryState();
@@ -92,6 +93,31 @@ function listenForPopStateEvents()
         updateCoordsScale();
         runPlotter();
     });
+}
+
+function listenForTabClickEvents()
+{
+    let buttons = document.getElementsByClassName("tab-button");
+    let tabs = document.getElementsByClassName("tab");
+
+    for (let i = 0; i < buttons.length; i++) {
+        let clicked = buttons[i];
+        let selectedTab = document.getElementById(clicked.id.replace("-button", ""));
+        clicked.addEventListener("click", event => {
+            for (let j = 0; j < buttons.length; j++) {
+                let button = buttons[j];
+                button.className = button.className.replace(" active", "");
+            }
+            clicked.className += " active";
+            for (let j = 0; j < tabs.length; j++) {
+                let tab = tabs[j];
+                if (tab === selectedTab)
+                    tab.style.display = "block";
+                else
+                    tab.style.display = "none";
+            }
+        });
+    }
 }
 
 function listenForUpdateClickEvents()
@@ -220,9 +246,9 @@ function setFractalParamVisibility(fractal)
 {
     let param = document.getElementById("param");
     if (fractal === "julia") {
-        param.style.visibility = "visible";
+        param.style.display = "block";
     } else {
-        param.style.visibility = "hidden";
+        param.style.display = "none";
     }
 }
 

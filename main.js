@@ -27,10 +27,10 @@ function init()
         maxIterations: 256,
         colours: {
             logarithmic: true,
-            scale: 8,
-            rOffset: 0.0,
-            gOffset: 0.3125,
-            bOffset: 0.625,
+            scale: 6,
+            rOffset: 0.805,
+            gOffset: 0,
+            bOffset: 0.27,
         },
         plotter: "subdivide",
         threads: defaultThreadCount(),
@@ -533,7 +533,7 @@ function displayColourMap()
     let i = 0;
     for (let y = 0; y < canvas.height; y++) {
         for (let x = 0; x < canvas.width; x++) {
-            let j = Math.floor(4 * 1024 * (x / canvas.width));
+            let j = Math.floor(2 * 1024 * (x / canvas.width));
             imageData[i++] = map.data[j % 1024 + 1];
         }
     }

@@ -116,6 +116,10 @@ function listenForTabClickEvents()
                 else
                     tab.style.display = "none";
             }
+            if (selectedTab.id == "colours-tab") {
+                resizeColourMap(canvasScale);
+                displayColourMap();
+            }
         });
     }
 }
@@ -148,15 +152,18 @@ function listenForColourMapChangeEvents()
         let value = form.elements[name + "Value"];
         assert(slider && value, "Can't find elements for: " + name);
 
+        value.value = slider.value;
+
         function listener() {
             value.value = slider.value;
+            displayColourMap();
         }
 
-        listener();
         slider.addEventListener("change", listener);
         slider.addEventListener("input", listener);
     }
 
+    // TODO: reflect value changes in the slider position.
     connectSliderAndValue("colourScale");
     connectSliderAndValue("redOffset");
     connectSliderAndValue("greenOffset");
@@ -169,6 +176,33 @@ function parseBool(s) {
     if (s === "0")
         return false;
     return NaN;
+}
+
+function getColourMapForm()
+{
+    let form = document.forms[0];
+
+    let logColour = parseBool(form.elements["logColour"].value);
+    if (Number.isNaN(logColour))
+        error("Bad logColour value");
+
+    let colourScale = parseFloat(form.elements["colourScaleSlider"].value);
+    if (Number.isNaN(colourScale))
+        error("Bad colourScale value");
+    
+    let redOffset = parseFloat(form.elements["redOffsetSlider"].value);
+    let greenOffset = parseFloat(form.elements["greenOffsetSlider"].value);
+    let blueOffset = parseFloat(form.elements["blueOffsetSlider"].value);
+    if (Number.isNaN(redOffset) || Number.isNaN(greenOffset) || Number.isNaN(blueOffset))
+        error("Bad colour offset value");
+
+    return {
+        logarithmic: logColour,
+        scale: colourScale,
+        rOffset: redOffset,
+        gOffset: greenOffset,
+        bOffset: blueOffset
+    };
 }
 
 function setParamsFromForm()
@@ -188,19 +222,7 @@ function setParamsFromForm()
     if (Number.isNaN(param_cx) || Number.isNaN(param_cy))
         error("Bad param value");
 
-    let logColour = parseBool(form.elements["logColour"].value);
-    if (Number.isNaN(logColour))
-        error("Bad logColour value");
-
-    let colourScale = parseFloat(form.elements["colourScaleSlider"].value);
-    if (Number.isNaN(colourScale))
-        error("Bad colourScale value");
-    
-    let redOffset = parseFloat(form.elements["redOffsetSlider"].value);
-    let greenOffset = parseFloat(form.elements["greenOffsetSlider"].value);
-    let blueOffset = parseFloat(form.elements["blueOffsetSlider"].value);
-    if (Number.isNaN(redOffset) || Number.isNaN(greenOffset) || Number.isNaN(blueOffset))
-        error("Bad colour offset value");
+    let colours = getColourMapForm();
 
     let plotter = form.elements["plotter"].value;
     if (plotter !== "subdivide" && plotter !== "fill" && plotter !== "naive")
@@ -213,11 +235,7 @@ function setParamsFromForm()
     params.fractal.name = fractal;
     params.fractal.param_cx = param_cx;
     params.fractal.param_cy = param_cy;
-    params.colours.logarithmic = logColour;
-    params.colours.scale = colourScale;
-    params.colours.rOffset = redOffset;
-    params.colours.gOffset = greenOffset;
-    params.colours.bOffset = blueOffset;
+    params.colours = colours;
     params.plotter = plotter;
     params.threads = threads;
 }
@@ -375,6 +393,7 @@ function resizeCanvas()
 
     params.image.width = canvas.width;
     params.image.height = canvas.height;
+
     updateCoordsScale();
     runPlotter();
 }
@@ -479,4 +498,45 @@ function updateMessage(text)
 {
     assert(lastMessage, "No message to update");
     lastMessage.textContent = text;
+}
+
+function resizeColourMap(scale)
+{
+    let container = document.getElementById("colourmapContainer");
+    assert(container, "Can't find colourmap container");
+
+    let width = container.offsetWidth;
+    let height = 50;
+
+    let pw = Math.floor(width * scale);
+    let ph = Math.floor(height * scale);
+
+    let canvas = document.getElementById("colourmap");
+    let context = canvas.getContext("2d");
+
+    canvas.width = pw;
+    canvas.height = ph;
+    canvas.style.width = width;
+    canvas.style.height = height;
+    context.scale(scale, scale);
+}
+
+function displayColourMap()
+{
+    let colours = getColourMapForm();
+    let map = buildColourMap(colours);
+    let canvas = document.getElementById("colourmap");
+    let context = canvas.getContext("2d");
+    let image = context.createImageData(canvas.width, canvas.height);
+    let imageData = new Uint32Array(image.data.buffer);
+
+    let i = 0;
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            let j = Math.floor(4 * 1024 * (x / canvas.width));
+            imageData[i++] = map.data[j % 1024 + 1];
+        }
+    }
+
+    context.putImageData(image, 0, 0);
 }

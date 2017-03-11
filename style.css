@@ -50,3 +50,8 @@ table
     border: 1px solid #ccc;
     border-top: none;
 }
+
+#colourmap
+{
+    border: 1px solid #aaa;
+}

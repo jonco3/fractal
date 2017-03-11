@@ -127,7 +127,7 @@ function plotImage(canvas, startCallback, endCallback)
     plotterEndCallback = endCallback;
 
     maybeCancelWorkers();
-    buildColourMap();
+    colourMap = buildColourMap(params.colours);
     doPlotImage("main");
 }
 
@@ -254,19 +254,19 @@ function shouldIncreaseIterations(stats)
     return edgeDist[edgeDist.length - 1] / stats.edgePixels > 0.2;
 }
 
-function buildColourMap()
+function buildColourMap(colours)
 {
     const size = 1024;
 
     let scale;
-    if (params.colours.logarithmic)
-        scale = 1 / params.colours.scale;
+    if (colours.logarithmic)
+        scale = 1 / colours.scale;
     else
-        scale = 1 / Math.pow(2, params.colours.scale);
+        scale = 1 / Math.pow(2, colours.scale);
 
-    colourMap = {
+    let colourMap = {
         size: size,
-        logarithmic: params.colours.logarithmic,
+        logarithmic: colours.logarithmic,
         scale: scale,
         data: new Uint32Array(size + 1),
     };
@@ -281,9 +281,11 @@ function buildColourMap()
     for (let i = 0; i < size; i++) {
         let v = i / size;
         let j = (i + 1) * 4;
-        bytes[j + 0] = Math.floor(frac(v + params.colours.rOffset) * 255);
-        bytes[j + 1] = Math.floor(frac(v + params.colours.gOffset) * 255);
-        bytes[j + 2] = Math.floor(frac(v + params.colours.bOffset) * 255);
+        bytes[j + 0] = Math.floor(frac(v + colours.rOffset) * 255);
+        bytes[j + 1] = Math.floor(frac(v + colours.gOffset) * 255);
+        bytes[j + 2] = Math.floor(frac(v + colours.bOffset) * 255);
         bytes[j + 3] = 255;
     }
+
+    return colourMap;
 }

@@ -474,7 +474,10 @@ function setStatusFinished(phase, time, stats)
     elems.push(`${plotted}% of pixels calculated`);
 
     let ms = time.toPrecision(3);
-    elems.push(`in ${ms} mS`);
+    if (ms > 1000)
+        elems.push(`in ${(ms / 1000).toPrecision(3)} S`);
+    else
+        elems.push(`in ${ms} mS`);
 
     updateMessage(elems.join(" "));
 }

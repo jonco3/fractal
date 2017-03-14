@@ -278,6 +278,10 @@ function buildColourMap(colours)
     bytes[2] = 0;
     bytes[3] = 255;
 
+    let r = colours.rOffset;
+    let g = colours.gOffset + r;
+    let b = colours.bOffset + g;
+
     function sinusoid(v)
     {
         return 0.5 * (Math.sin(2 * Math.PI * v) + 1);
@@ -286,9 +290,9 @@ function buildColourMap(colours)
     let j = 4;
     for (let i = 0; i < size; i++) {
         let v = i / size;
-        bytes[j + 0] = Math.floor(sinusoid(v + colours.rOffset) * 255);
-        bytes[j + 1] = Math.floor(sinusoid(v + colours.gOffset) * 255);
-        bytes[j + 2] = Math.floor(sinusoid(v + colours.bOffset) * 255);
+        bytes[j + 0] = Math.floor(sinusoid(v + r) * 255);
+        bytes[j + 1] = Math.floor(sinusoid(v + g) * 255);
+        bytes[j + 2] = Math.floor(sinusoid(v + b) * 255);
         bytes[j + 3] = 255;
         j += 4;
     }

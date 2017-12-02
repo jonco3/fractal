@@ -11,24 +11,28 @@ function error(message)
 }
 
 onmessage = (event) => {
-    switch(event.data[0]) {
+    let args = event.data;
+    let message = args.shift();
+    switch (message) {
         case "test": {
             break;
         }
         case "plotRegion": {
-            assert(event.data.length === 4, "Bad plotRegion request");
+            assert(args.length === 3, "Bad plotRegion request");
             let region;
-            [, params, region, colourMap] = event.data;
+            [params, region, colourMap] = args;
             let [buffer, stats] = plotRegion(region);
-            postMessage(["plotRegionFinished", region, buffer, stats], [buffer]);
+            postMessage(["plotRegionFinished", region, buffer, stats],
+                        [buffer]);
             break;
         }
         case "antialiasRegion": {
-            assert(event.data.length === 5, "Bad antialiasRegion request");
+            assert(args.length === 4, "Bad antialiasRegion request");
             let region, buffer;
-            [, params, region, colourMap, buffer] = event.data;
+            [params, region, colourMap, buffer] = args;
             let pixelsPlotted = antialiasRegion(region, buffer);
-            postMessage(["plotRegionFinished", region, buffer, pixelsPlotted], [buffer]);
+            postMessage(["plotRegionFinished", region, buffer, pixelsPlotted],
+                        [buffer]);
             break;
         }
         default: {

@@ -49,9 +49,9 @@ function plotRegion(region)
     let iterationData = new Uint32Array(buffer);
     let plot = getPlotterFunc();
     let iterate = getIterationFunc();
-    let pixelsPlotted = plot(iterate, pw, ph, iterationData);
+    let pixelsPlotted = plot(iterate, 0, 0, pw, ph, iterationData, pw);
 
-    let stats = computeStats(iterationData, pw, ph, pixelsPlotted);
+    let stats = computeStats(0, 0, pw, ph, iterationData, pw, pixelsPlotted);
 
     let imageData = iterationData;
     colouriseBuffer(iterationData, imageData);
@@ -63,7 +63,7 @@ function antialiasRegion(region, buffer)
 {
     let [pw, ph] = initRegion(region);
     let iterate = getIterationFunc();
-    let pixelsPlotted = antialias(iterate, pw, ph, buffer);
+    let pixelsPlotted = antialias(iterate, 0, 0, pw, ph, buffer, pw);
     return {
         totalPixels: pw * ph,
         pixelsPlotted: pixelsPlotted
@@ -108,20 +108,20 @@ function getIterationFunc()
     }
 }
 
-function plotAll(iterations, pw, ph, buffer)
+function plotAll(iterations, x0, y0, x1, y1, buffer, bw)
 {
-    let i = 0;
-    for (let py = 0; py < ph; py++) {
+    for (let py = y0; py < y1; py++) {
+        let i = bw * py + x0;
         let cy = complexCoordForPixelY(py);
-        for (let px = 0; px < pw; px++) {
+        for (let px = x0; px < x1; px++) {
             let cx = complexCoordForPixelX(px);
             buffer[i++] = iterations(cx, cy);
         }
     }
-    return pw * ph;
+    return x1 * y1;
 }
 
-function plotFill(iterations, pw, ph, buffer) {
+function plotFill(iterations, x0, y0, x1, y1, buffer, bw) {
     let px;
     let py;
 
@@ -141,19 +141,19 @@ function plotFill(iterations, pw, ph, buffer) {
         px = stack.pop();
     }
 
-    for (px = 0; px < pw; px++) {
-        push(px, 0);
-        push(px, ph - 1);
+    for (px = x0; px < x1; px++) {
+        push(px, y0);
+        push(px, y1 - 1);
     }
-    for (py = 1; py < ph - 1; py++) {
-        push(0, py);
-        push(pw - 1, py);
+    for (py = y0 + 1; py < y1 - 1; py++) {
+        push(x0, py);
+        push(x1 - 1, py);
     }
 
     let pixels = 0;
     while (!empty()) {
         pop();
-        let i = px + py * pw;
+        let i = px + py * bw;
         if (buffer[i])
             continue;
 
@@ -166,26 +166,26 @@ function plotFill(iterations, pw, ph, buffer) {
         if (r === 1)
             continue;
 
-        if (px > 0 && buffer[i - 1] === 0)
+        if (px > x0 && buffer[i - 1] === 0)
             push(px - 1, py);
-        if (py > 0 && buffer[i - pw] === 0)
+        if (py > y0 && buffer[i - x1] === 0)
             push(px, py - 1);
-        if (px < pw - 1 && buffer[i + 1] === 0)
+        if (px < x1 - 1 && buffer[i + 1] === 0)
             push(px + 1, py);
-        if (py < ph - 1 && buffer[i + pw] === 0)
+        if (py < y1 - 1 && buffer[i + x1] === 0)
             push(px, py + 1);
     }
 
     return pixels;
 }
 
-function plotDivide(iterations, pw, ph, buffer) {
+function plotDivide(iterations, x0, y0, x1, y1, buffer, bw) {
     let px;
     let py;
     let pixels = 0;
 
     function maybePlotPixel(px, py, cx, cy) {
-        let i = px + py * pw;
+        let i = px + py * bw;
         let r = buffer[i];
         if (!r) {
             r = iterations(cx, cy);
@@ -228,10 +228,9 @@ function plotDivide(iterations, pw, ph, buffer) {
 
     function fillArea(x0, y0, x1, y1, r) {
         for (let py = y0; py < y1; py++) {
-            let i = x0 + py * pw;
-            for (let px = x0; px < x1; px++) {
+            let i = x0 + py * bw;
+            for (let px = x0; px < x1; px++)
                 buffer[i++] = r;
-            }
         }
     }
 
@@ -260,11 +259,11 @@ function plotDivide(iterations, pw, ph, buffer) {
         }
     }
 
-    recurse(0, 0, pw, ph);
+    recurse(x0, y0, x1, y1);
     return pixels;
 }
 
-function antialias(iterations, pw, ph, buffer)
+function antialias(iterations, x0, y0, x1, y1, buffer, bw)
 {
     let imageData = new Uint8ClampedArray(buffer);
     let wordView = new Uint32Array(buffer);
@@ -278,21 +277,21 @@ function antialias(iterations, pw, ph, buffer)
         let v = wordView[i];
         if (px > 0 && wordView[i - 1] !== v)
             return true;
-        if (py > 0 && wordView[i - pw] !== v)
+        if (py > 0 && wordView[i - x1] !== v)
             return true;
-        if (px < pw - 1 && wordView[i + 1] !== v)
+        if (px < x1 - 1 && wordView[i + 1] !== v)
             return true;
-        if (py < ph - 1 && wordView[i + pw] !== v)
+        if (py < y1 - 1 && wordView[i + x1] !== v)
             return true;
         return false;
     }
 
     let pixelsPlotted = 0;
-    let i = 0;
     let pixelData = new Uint32Array(1);
     let pixelBytes = new Uint8ClampedArray(pixelData.buffer);
-    for (let py = 0; py < ph; py++) {
-        for (let px = 0; px < pw; px++) {
+    for (let py = 0; py < y1; py++) {
+        let i = py * bw + x0;
+        for (let px = 0; px < x1; px++) {
             if (hasDifferentNeighbour(px, py, i)) {
                 let cy = complexCoordForPixelY(py) + subPixelOffset;
                 let tr = 0;
@@ -364,7 +363,7 @@ function julia(cx, cy)
     return 1;
 }
 
-function computeStats(iterationData, pw, ph, pixelsPlotted)
+function computeStats(x0, y0, x1, y1, iterationData, bw, pixelsPlotted)
 {
     // Calculate various information about the image including the distribution
     // of iterations required for the neighbours of black pixels. The latter is
@@ -373,9 +372,11 @@ function computeStats(iterationData, pw, ph, pixelsPlotted)
     // TODO: We don't use all of this data in the main app although it's useful
     // for testing.
 
-    let [blackPixels, edgePixels, edgeDist] = computeEdgeData(iterationData, pw, ph);
+    let [blackPixels, edgePixels, edgeDist] =
+        computeEdgeData(x0, y0, x1, y1, iterationData, bw);
+
     return {
-        totalPixels: pw * ph,
+        totalPixels: (x1 - x0) * (y1 - x0),
         pixelsPlotted: pixelsPlotted,
         blackPixels: blackPixels,
         edgePixels: edgePixels,
@@ -387,7 +388,7 @@ Math.log2 = Math.log2 || function(x) {
   return Math.log(x) * Math.LOG2E;
 };
 
-function computeEdgeData(iterationData, pw, ph)
+function computeEdgeData(x0, y0, x1, y1, iterationData, bw)
 {
     let buckets = Math.round(Math.log2(params.maxIterations));
     let dist = new Array(buckets);
@@ -395,21 +396,21 @@ function computeEdgeData(iterationData, pw, ph)
         dist[b] = 0;
 
     function hasBlackNeighbour(px, py, i) {
-        if (px > 0 && iterationData[i - 1] <= 1)
+        if (px > x0 && iterationData[i - 1] <= 1)
             return true;
-        if (py > 0 && iterationData[i - pw] <= 1)
+        if (py > y0 && iterationData[i - bw] <= 1)
             return true;
-        if (px < pw - 1 && iterationData[i + 1] <= 1)
+        if (px < x1 - 1 && iterationData[i + 1] <= 1)
             return true;
-        if (py < ph - 1 && iterationData[i + pw] <= 1)
+        if (py < y1 - 1 && iterationData[i + bw] <= 1)
             return true;
     }
 
     let blackPixels = 0;
     let edgePixels = 0;
-    let i = -1;
-    for (let py = 0; py < ph; py++) {
-        for (let px = 0; px < pw; px++) {
+    for (let py = 0; py < y1; py++) {
+        let i = py * bw + x0;
+        for (let px = 0; px < x1; px++) {
             i++;
             let r = iterationData[i];
             if (r <= 1) {
@@ -425,7 +426,6 @@ function computeEdgeData(iterationData, pw, ph)
             edgePixels++;
         }
     }
-    assert(i === pw * ph - 1, "Bad index value");
 
     return [blackPixels, edgePixels, dist];
 }

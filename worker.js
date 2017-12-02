@@ -47,9 +47,9 @@ function plotRegion(region)
 
     let buffer = new ArrayBuffer(pw * ph * 4);
     let iterationData = new Uint32Array(buffer);
-    let plotter = plotterFunc();
-    let iterate = iterationFunc();
-    let pixelsPlotted = plotter(iterate, pw, ph, iterationData);
+    let plot = getPlotterFunc();
+    let iterate = getIterationFunc();
+    let pixelsPlotted = plot(iterate, pw, ph, iterationData);
 
     let stats = computeStats(iterationData, pw, ph, pixelsPlotted);
 
@@ -62,7 +62,7 @@ function plotRegion(region)
 function antialiasRegion(region, buffer)
 {
     let [pw, ph] = initRegion(region);
-    let iterate = iterationFunc();
+    let iterate = getIterationFunc();
     let pixelsPlotted = antialias(iterate, pw, ph, buffer);
     return {
         totalPixels: pw * ph,
@@ -82,7 +82,7 @@ function initRegion(region)
     return [x1 - x0, y1 - y0];
 }
 
-function plotterFunc()
+function getPlotterFunc()
 {
     switch (params.plotter) {
     case "subdivide":
@@ -96,7 +96,7 @@ function plotterFunc()
     }
 }
 
-function iterationFunc()
+function getIterationFunc()
 {
     switch (params.fractal.name) {
     case "mandelbrot":

@@ -44,14 +44,15 @@ onmessage = (event) => {
 function plotRegion(region)
 {
     let [pw, ph] = initRegion(region);
+    region = [0, 0, pw, ph];
 
     let buffer = new ArrayBuffer(pw * ph * 4);
     let iterationData = new Uint32Array(buffer);
     let plot = getPlotterFunc();
     let iterate = getIterationFunc();
-    let pixelsPlotted = plot(iterate, 0, 0, pw, ph, iterationData, pw);
+    let pixelsPlotted = plot(iterate, region, iterationData, pw);
 
-    let stats = computeStats(0, 0, pw, ph, iterationData, pw, pixelsPlotted);
+    let stats = computeStats(region, iterationData, pw, pixelsPlotted);
 
     let imageData = iterationData;
     colouriseBuffer(iterationData, imageData);
@@ -62,8 +63,10 @@ function plotRegion(region)
 function antialiasRegion(region, buffer)
 {
     let [pw, ph] = initRegion(region);
+    region = [0, 0, pw, ph];
+
     let iterate = getIterationFunc();
-    let pixelsPlotted = antialias(iterate, 0, 0, pw, ph, buffer, pw);
+    let pixelsPlotted = antialias(iterate, region, buffer, pw);
     return {
         totalPixels: pw * ph,
         pixelsPlotted: pixelsPlotted
@@ -108,8 +111,9 @@ function getIterationFunc()
     }
 }
 
-function plotAll(iterations, x0, y0, x1, y1, buffer, bw)
+function plotAll(iterations, region, buffer, bw)
 {
+    let [x0, y0, x1, y1] = region;
     for (let py = y0; py < y1; py++) {
         let i = bw * py + x0;
         let cy = complexCoordForPixelY(py);
@@ -121,10 +125,11 @@ function plotAll(iterations, x0, y0, x1, y1, buffer, bw)
     return x1 * y1;
 }
 
-function plotFill(iterations, x0, y0, x1, y1, buffer, bw) {
+function plotFill(iterations, region, buffer, bw) {
+    let [x0, y0, x1, y1] = region;
+
     let px;
     let py;
-
     let stack = [];
 
     function empty() {
@@ -179,7 +184,9 @@ function plotFill(iterations, x0, y0, x1, y1, buffer, bw) {
     return pixels;
 }
 
-function plotDivide(iterations, x0, y0, x1, y1, buffer, bw) {
+function plotDivide(iterations, region, buffer, bw) {
+    let [x0, y0, x1, y1] = region;
+
     let px;
     let py;
     let pixels = 0;
@@ -263,8 +270,10 @@ function plotDivide(iterations, x0, y0, x1, y1, buffer, bw) {
     return pixels;
 }
 
-function antialias(iterations, x0, y0, x1, y1, buffer, bw)
+function antialias(iterations, region, buffer, bw)
 {
+    let [x0, y0, x1, y1] = region;
+
     let imageData = new Uint8ClampedArray(buffer);
     let wordView = new Uint32Array(buffer);
 
@@ -363,7 +372,7 @@ function julia(cx, cy)
     return 1;
 }
 
-function computeStats(x0, y0, x1, y1, iterationData, bw, pixelsPlotted)
+function computeStats(region, iterationData, bw, pixelsPlotted)
 {
     // Calculate various information about the image including the distribution
     // of iterations required for the neighbours of black pixels. The latter is
@@ -373,8 +382,9 @@ function computeStats(x0, y0, x1, y1, iterationData, bw, pixelsPlotted)
     // for testing.
 
     let [blackPixels, edgePixels, edgeDist] =
-        computeEdgeData(x0, y0, x1, y1, iterationData, bw);
+        computeEdgeData(region, iterationData, bw);
 
+    let [x0, y0, x1, y1] = region;
     return {
         totalPixels: (x1 - x0) * (y1 - x0),
         pixelsPlotted: pixelsPlotted,
@@ -388,7 +398,7 @@ Math.log2 = Math.log2 || function(x) {
   return Math.log(x) * Math.LOG2E;
 };
 
-function computeEdgeData(x0, y0, x1, y1, iterationData, bw)
+function computeEdgeData(region, iterationData, bw)
 {
     let buckets = Math.round(Math.log2(params.maxIterations));
     let dist = new Array(buckets);
@@ -406,11 +416,12 @@ function computeEdgeData(x0, y0, x1, y1, iterationData, bw)
             return true;
     }
 
+    let [x0, y0, x1, y1] = region;
     let blackPixels = 0;
     let edgePixels = 0;
-    for (let py = 0; py < y1; py++) {
+    for (let py = y0; py < y1; py++) {
         let i = py * bw + x0;
-        for (let px = 0; px < x1; px++) {
+        for (let px = x0; px < x1; px++) {
             i++;
             let r = iterationData[i];
             if (r <= 1) {

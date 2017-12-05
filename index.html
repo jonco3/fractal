@@ -15,22 +15,38 @@
     </div>
     <form>
       <div class="tab" id="fractal-tab" style="display: block">
-        <div>
-          <label>
-            Fractal:
-            <select name="fractal">
-              <option value="mandelbrot">Mandelbrot</option>
-              <option value="julia">Julia</option>
-            </select>
-          </label>
-        </div>
-        <div id="param" style="display: none">
-          <label>
-            Parameter:
-            <input name="param_cx" type="number" value="0.65"></input>
-            <input name="param_cy" type="number" value="0.0"></input>
-          </label>
-        </div>
+        <table width="100%">
+          <tr>
+            <td>Fractal:</td>
+            <td colspan="2">
+              <select name="fractal">
+                <option value="mandelbrot">Mandelbrot</option>
+                <option value="julia">Julia</option>
+            </td>
+          </tr>
+          <tr>
+            <td>Parameter x:</td>
+            <td>
+              <input name="paramXValue" type="text" disabled="true"
+                     size="3" style="width: 4.5em"></input>
+            </td>
+            <td width="80%">
+              <input name="paramXSlider" class="paramSlider" type="range"
+                     min="-3" max="3" value="0" step="any"></input>
+            </td>
+          </tr>
+          <tr>
+            <td>Parameter y:</td>
+            <td>
+              <input name="paramYValue" type="text" disabled="true"
+                     size="3" style="width: 4.5em"></input>
+            </td>
+            <td>
+              <input name="paramYSlider" class="paramSlider" type="range"
+                     min="-3" max="3" value="0" step="any"></input>
+            </td>
+          </tr>
+        </table>
       </div>
       <div class="tab" id="colours-tab" style="display: none">
         <table width="100%">

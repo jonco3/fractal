@@ -137,7 +137,6 @@ function listenForUpdateClickEvents()
 function listenForFractalChangeEvents()
 {
     let fractal = document.forms[0].elements["fractal"];
-    let param = document.getElementById("param");
     fractal.addEventListener("change", (event) => {
         setFractalParamVisibility(fractal.value);
     });
@@ -164,6 +163,8 @@ function listenForSliderChangeEvents()
     }
 
     // TODO: reflect value changes in the slider position.
+    connectSliderAndValue("paramX");
+    connectSliderAndValue("paramY");
     connectSliderAndValue("colourScale");
     connectSliderAndValue("redOffset");
     connectSliderAndValue("greenOffset");
@@ -218,8 +219,8 @@ function setParamsFromForm()
     let param_cx = 0.0;
     let param_cy = 0.0;
     if (fractal === "julia") {
-        param_cx = parseFloat(form.elements["param_cx"].value);
-        param_cy = parseFloat(form.elements["param_cy"].value);
+        param_cx = parseFloat(form.elements["paramXSlider"].value);
+        param_cy = parseFloat(form.elements["paramYSlider"].value);
     }
     if (Number.isNaN(param_cx) || Number.isNaN(param_cy))
         error("Bad param value");
@@ -251,8 +252,10 @@ function updateFormFromParams()
 {
     let form = document.forms[0];
     form.elements["fractal"].value = params.fractal.name;
-    form.elements["param_cx"].value = params.fractal.param_cx;
-    form.elements["param_cy"].value = params.fractal.param_cy;
+    form.elements["paramXSlider"].value = params.fractal.param_cx;
+    form.elements["paramXValue"].value = params.fractal.param_cx;
+    form.elements["paramYSlider"].value = params.fractal.param_cy;
+    form.elements["paramYValue"].value = params.fractal.param_cy;
     form.elements["logColour"].value = params.colours.logarithmic ? "1" : "0";
     form.elements["colourScaleSlider"].value = params.colours.scale;
     form.elements["colourScaleValue"].value = params.colours.scale;
@@ -272,12 +275,14 @@ function updateFormFromParams()
 
 function setFractalParamVisibility(fractal)
 {
-    let param = document.getElementById("param");
-    if (fractal === "julia") {
-        param.style.display = "block";
-    } else {
-        param.style.display = "none";
-    }
+    let disabled = fractal === "mandelbrot";
+    let form = document.forms[0];
+    form.elements["paramXSlider"].disabled = disabled;
+    form.elements["paramYSlider"].disabled = disabled;
+    form.elements["paramXValue"].value =
+        disabled ? "" : form.elements["paramXSlider"].value;
+    form.elements["paramYValue"].value =
+        disabled ? "" : form.elements["paramYSlider"].value;
 }
 
 function maybeSetParamsFromQueryString()

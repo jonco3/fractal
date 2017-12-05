@@ -455,6 +455,11 @@ function setStatusStarted(phase)
         error("Unknown phase: " + phase);
 }
 
+function capitalise(string)
+{
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 function setStatusFinished(phase, time, stats)
 {
     let elems = [];
@@ -462,7 +467,7 @@ function setStatusFinished(phase, time, stats)
     let ph = canvas.height;
 
     if (phase === "main") {
-        elems.push(`Mandelbrot set`);
+        elems.push(`${capitalise(params.fractal.name)} set`);
 
         let cx = params.coords.centre_cx.toPrecision(4);
         let cy = params.coords.centre_cy.toPrecision(4);

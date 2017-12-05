@@ -119,7 +119,7 @@ function plotAll(iterations, region, buffer, bw)
         let cy = complexCoordForPixelY(py);
         for (let px = x0; px < x1; px++) {
             let cx = complexCoordForPixelX(px);
-            buffer[i++] = iterations(cx, cy);
+            buffer[i++] = iterations(cx, cy) + 1;
         }
     }
     return x1 * y1;
@@ -164,7 +164,7 @@ function plotFill(iterations, region, buffer, bw) {
 
         let cx = complexCoordForPixelX(px);
         let cy = complexCoordForPixelY(py);
-        let r = iterations(cx, cy);
+        let r = iterations(cx, cy) + 1;
         buffer[i] = r;
         pixels++;
 
@@ -195,7 +195,7 @@ function plotDivide(iterations, region, buffer, bw) {
         let i = px + py * bw;
         let r = buffer[i];
         if (!r) {
-            r = iterations(cx, cy);
+            r = iterations(cx, cy) + 1;
             buffer[i] = r;
             pixels++;
         }
@@ -309,7 +309,7 @@ function antialias(iterations, region, buffer, bw)
                 for (let sy = 0; sy < subPixelFactor; sy++) {
                     let cx = complexCoordForPixelX(px) + subPixelOffset;
                     for (let sx = 0; sx < subPixelFactor; sx++) {
-                        let r = iterations(cx, cy);
+                        let r = iterations(cx, cy) + 1;
                         pixelData[0] = colourisePoint(r);
                         tr += pixelBytes[0];
                         tg += pixelBytes[1];
@@ -332,11 +332,11 @@ function antialias(iterations, region, buffer, bw)
 
 function mandelbrot(cx, cy)
 {
-    // Returns |itererations + 1| or one if the point does not escape.
+    // Returns itereration count or zero if the point does not escape.
 
     let zx = cx;
     let zy = cy;
-    let i = 2;
+    let i = 1;
     while (i < params.maxIterations) {
         let xx = zx * zx;
         let yy = zy * zy;
@@ -348,16 +348,16 @@ function mandelbrot(cx, cy)
         i++;
     }
 
-    return 1;
+    return 0;
 }
 
 function julia(cx, cy)
 {
-    // Returns |itererations + 1| or one if the point does not escape.
+    // Returns itereration count or zero if the point does not escape.
 
     let zx = cx;
     let zy = cy;
-    let i = 2;
+    let i = 1;
     while (i < params.maxIterations) {
         let xx = zx * zx;
         let yy = zy * zy;
@@ -369,7 +369,7 @@ function julia(cx, cy)
         i++;
     }
 
-    return 1;
+    return 0;
 }
 
 function computeStats(region, iterationData, bw, pixelsPlotted)

@@ -33,7 +33,7 @@
         </div>
       </div>
       <div class="tab" id="colours-tab" style="display: none">
-        <table>
+        <table width="100%">
           <tr>
             <td>Mapping:</td>
             <td colspan="2">
@@ -41,7 +41,11 @@
               <input name="logColour" type="radio" value="1"
                      checked>Logarithmic</input>
             </td>
-            <label>
+            <td rowspan="5" width="60%">
+              <div id="colourmapContainer">
+                <canvas id="colourmap"></canvas>
+              </div>
+            </td>
           </tr>
           <tr>
             <td>Scale:</td>
@@ -88,9 +92,6 @@
             </td>
           </tr>
         </table>
-        <div id="colourmapContainer" width="100%">
-          <canvas id="colourmap"></canvas>
-        </div>
       </div>
       <div class="tab" id="plotter-tab" style="display: none">
         <div>

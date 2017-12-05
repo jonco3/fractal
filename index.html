@@ -94,23 +94,40 @@
         </table>
       </div>
       <div class="tab" id="plotter-tab" style="display: none">
-        <div>
-          <label>
-            Plotter:
-            <select name="plotter">
-              <option value="subdivide">Subdivide</option>
-              <option value="fill">Fill</option>
-              <option value="naive">Naive</option>
-            </select>
-          </label>
-        </div>
-        <div>
-          <label>
-            Threads:
-            <input name="threads" type="number" size="2" style="width: 3em"
-                   value="1" step="1" min="1" max="16"></input>
-          </label>
-        </div>
+        <table>
+          <tr>
+            <td>Antialias:</td>
+            <td>
+              <input name="antialiasValue" type="text" disabled="true"
+                     size="3" style="width: 4.5em"></input>
+            </td>
+            <td>
+              <input name="antialiasSlider" type="range"
+                     min="0" max="5" step="1" value="3"></input>
+            </td>
+          </tr>
+          <tr>
+            <td>Threads:</td>
+            <td>
+              <input name="threadsValue" type="text" disabled="true"
+                     size="3" style="width: 4.5em"></input>
+            </td>
+            <td>
+              <input name="threadsSlider" type="range"
+                     min="1" max="16" step="1" value="1"></input>
+            </td>
+          </tr>
+          <tr>
+            <td>Plotter:</td>
+            <td colspan="2">
+              <select name="plotter">
+                <option value="subdivide">Subdivide</option>
+                <option value="fill">Fill</option>
+                <option value="naive">Naive</option>
+              </select>
+            </td>
+          </tr>
+        </table>
       </div>
       <div class="tab-bottom">
         <input id="update" type="button" value="Update"></input>

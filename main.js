@@ -43,7 +43,7 @@ function init()
     listenForPopStateEvents();
     listenForTabClickEvents();
     listenForFractalChangeEvents();
-    listenForColourMapChangeEvents();
+    listenForSliderChangeEvents();
     listenForUpdateClickEvents();
     maybeSetParamsFromQueryString();
     updateCoordsScale();
@@ -143,7 +143,7 @@ function listenForFractalChangeEvents()
     });
 }
 
-function listenForColourMapChangeEvents()
+function listenForSliderChangeEvents()
 {
     let form = document.forms[0];
 
@@ -168,6 +168,8 @@ function listenForColourMapChangeEvents()
     connectSliderAndValue("redOffset");
     connectSliderAndValue("greenOffset");
     connectSliderAndValue("blueOffset");
+    connectSliderAndValue("antialias");
+    connectSliderAndValue("threads");
 }
 
 function parseBool(s) {
@@ -224,20 +226,25 @@ function setParamsFromForm()
 
     let colours = getColourMapForm();
 
+    let antialias = parseInt(form.elements["antialiasSlider"].value);
+    if (antialias < 0 || antialias > 5)
+        error("Bad antialias setting: " + antialias);
+
+    let threads = parseInt(form.elements["threadsSlider"].value);
+    if (threads < 1 || threads > 16)
+        error("Bad thread count: " + threads);
+
     let plotter = form.elements["plotter"].value;
     if (plotter !== "subdivide" && plotter !== "fill" && plotter !== "naive")
         error("Bad plotter name: " + plotter)
-
-    let threads = parseInt(form.elements["threads"].value);
-    if (threads < 1 || threads > 16)
-        error("Bad thread count: " + threads);
 
     params.fractal.name = fractal;
     params.fractal.param_cx = param_cx;
     params.fractal.param_cy = param_cy;
     params.colours = colours;
-    params.plotter = plotter;
+    params.antialias = antialias;
     params.threads = threads;
+    params.plotter = plotter;
 }
 
 function updateFormFromParams()
@@ -255,8 +262,11 @@ function updateFormFromParams()
     form.elements["greenOffsetValue"].value = params.colours.gOffset;
     form.elements["blueOffsetSlider"].value = params.colours.bOffset;
     form.elements["blueOffsetValue"].value = params.colours.bOffset;
+    form.elements["antialiasSlider"].value = params.antialias;
+    form.elements["antialiasValue"].value = params.antialias;
+    form.elements["threadsSlider"].value = params.threads;
+    form.elements["threadsValue"].value = params.threads;
     form.elements["plotter"].value = params.plotter;
-    form.elements["threads"].value = params.threads;
     setFractalParamVisibility(params.fractal.name);
 }
 

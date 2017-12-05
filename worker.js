@@ -275,22 +275,39 @@ function antialias(iterations, region, buffer, bw)
         let v = wordView[i];
         if (px > 0 && wordView[i - 1] !== v)
             return true;
-        if (py > 0 && wordView[i - x1] !== v)
+        if (py > 0 && wordView[i - bw] !== v)
             return true;
         if (px < x1 - 1 && wordView[i + 1] !== v)
             return true;
-        if (py < y1 - 1 && wordView[i + x1] !== v)
+        if (py < y1 - 1 && wordView[i + bw] !== v)
             return true;
         return false;
     }
 
+    // First pass finds pixels to be recalculated.
+    let pw = x1 - x0;
+    let ph = y1 - y0;
+    let pixelsToPlot = new Uint8Array(pw * ph);
+    let k = 0;
+    for (let py = y0; py < y1; py++) {
+        let i = py * bw + x0;
+        for (let px = x0; px < x1; px++) {
+            if (hasDifferentNeighbour(px, py, i))
+                pixelsToPlot[k] = 1;
+            i++;
+            k++;
+        }
+    }
+
+    // Second pass does the work.
     let pixelsPlotted = 0;
     let pixelData = new Uint32Array(1);
     let pixelBytes = new Uint8ClampedArray(pixelData.buffer);
-    for (let py = 0; py < y1; py++) {
+    k = 0;
+    for (let py = y0; py < y1; py++) {
         let i = py * bw + x0;
-        for (let px = 0; px < x1; px++) {
-            if (hasDifferentNeighbour(px, py, i)) {
+        for (let px = x0; px < x1; px++) {
+            if (pixelsToPlot[k]) {
                 let cy = complexCoordForPixelY(py) + subPixelOffset;
                 let tr = 0;
                 let tg = 0;
@@ -314,6 +331,7 @@ function antialias(iterations, region, buffer, bw)
                 pixelsPlotted++;
             }
             i++;
+            k++;
         }
     }
     return pixelsPlotted;

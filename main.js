@@ -40,6 +40,7 @@ function init()
     canvas = document.getElementById("canvas");
     listenForResizeEvent();
     listenForCanvasClickEvents();
+    listenForCanvasMouseEvents();
     listenForPopStateEvents();
     listenForTabClickEvents();
     listenForFractalChangeEvents();
@@ -82,6 +83,50 @@ function listenForCanvasClickEvents()
         let y = Math.round((event.clientY - rect.top) * canvasScale);
         if (event.detail == 2)
             zoomAt(x, y);
+    });
+}
+
+function listenForCanvasMouseEvents()
+{
+    let dragging = false;
+    let ix, iy;
+
+    function startDrag(px, py) {
+        dragging = true;
+        ix = px;
+        iy = py;
+    }
+
+    function updateDrag(px, py) {
+        let ox = px - ix;
+        let oy = py - iy;
+        canvas.style.left = ox + "px";
+        canvas.style.top = oy + "px";
+    }
+
+    function stopDrag(px, py) {
+        dragging = false;
+        let ox = px - ix;
+        let oy = py - iy;
+        canvas.style.left = "0px";
+        canvas.style.top = "0px";
+        moveBy(ox, oy);
+    }
+
+    canvas.addEventListener("mousedown", (event) => {
+        startDrag(event.clientX, event.clientY);
+    });
+    canvas.addEventListener("mouseup", (event) => {
+        if (dragging)
+            stopDrag(event.clientX, event.clientY);
+    });
+    canvas.addEventListener("mouseleave", (event) => {
+        if (dragging)
+            stopDrag(event.clientX, event.clientY);
+    });
+    canvas.addEventListener("mousemove", (event) => {
+        if (dragging)
+            updateDrag(event.clientX, event.clientY)
     });
 }
 
@@ -297,17 +342,22 @@ function maybeSetParamsFromQueryString()
 
     function parseElement(name, parseFunc = s => s)
     {
-        let v = NaN;
-        if (elements.length > 0) {
-            let s = elements.shift();
-            let match = name + "=";
-            if (s.startsWith(match) && s.length > match.length)
-                v = parseFunc(s.substring(match.length));
+        if (elements.length === 0) {
+            ok = false;
+            return;
         }
 
-        if (v === NaN) {
-            alert("Bad query parameter: " + name);
+        let s = elements.shift();
+        let match = name + "=";
+        if (!s.startsWith(match) || s.length <= match.length) {
             ok = false;
+            return;
+        }
+
+        let v = parseFunc(s.substring(match.length));
+        if (Number.isNaN(v)) {
+            ok = false;
+            return;
         }
 
         return v;
@@ -335,8 +385,10 @@ function maybeSetParamsFromQueryString()
     let g = parseElement("g", parseFloat);
     let b = parseElement("b", parseFloat);
 
-    if (!ok)
+    if (!ok) {
+        alert("Error parsing query string");
         return;
+    }
 
     params.fractal.name = f;
     params.fractal.param_cx = p;
@@ -413,9 +465,21 @@ function resizeCanvas()
     runPlotter();
 }
 
-function setCoords(centre_cx, centre_cy, size_cy)
+function setComplexCoords(centre_cx, centre_cy, size_cy)
 {
     assert(size_cy !== 0, "Bad complex height");
+    params.coords = {
+        centre_cx: centre_cx,
+        centre_cy: centre_cy,
+        size_cy: size_cy
+    };
+    updateCoordsScale();
+}
+
+function setPixelCoords(centre_px, centre_py, size_py)
+{
+    assert(size_py !== 0, "Bad pixel height");
+    
     params.coords = {
         centre_cx: centre_cx,
         centre_cy: centre_cy,
@@ -435,9 +499,47 @@ function updateHistoryState()
 
 function zoomAt(px, py)
 {
-    setCoords(complexCoordForPixelX(px),
-              complexCoordForPixelY(py),
-              params.coords.size_cy / 2);
+    setComplexCoords(complexCoordForPixelX(px),
+                     complexCoordForPixelY(py),
+                     params.coords.size_cy / 2);
+    updateHistoryState();
+    runPlotter();
+}
+
+function moveBy(ox, oy)
+{
+    addMessage(`moveBy ${ox} ${oy} ${canvasScale}`);
+
+    // todo: Does this actually copy the data?  Can we just move the existing
+    // data in-place?
+    let context = canvas.getContext('2d');
+    let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    context.putImageData(imageData,
+                         Math.round(ox * canvasScale),
+                         Math.round(oy * canvasScale));
+
+    let pw = canvas.width / canvasScale;
+    let ph = canvas.height / canvasScale;
+
+    context.fillStyle = "white";
+    if (ox > 0)
+        context.fillRect(0, 0, ox, ph);
+    else if (ox < 0)
+        context.fillRect(pw + ox, 0, -ox, ph);
+
+    if (oy > 0)
+        context.fillRect(0, 0, pw, oy);
+    else if (oy < 0)
+        context.fillRect(0, ph + oy, pw, -oy);
+
+    ox = Math.round(ox * canvasScale),
+    oy = Math.round(oy * canvasScale)
+
+    let px = Math.floor(canvas.width / 2) - ox;
+    let py = Math.floor(canvas.height / 2) - oy;
+    setComplexCoords(complexCoordForPixelX(px),
+                     complexCoordForPixelY(py),
+                     params.coords.size_cy);
     updateHistoryState();
     runPlotter();
 }

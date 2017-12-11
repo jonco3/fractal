@@ -258,12 +258,12 @@ function setParamsFromForm()
     let form = document.forms[0];
 
     let fractal = form.elements["fractal"].value;
-    if (fractal !== "mandelbrot" && fractal !== "julia")
+    if (!fractalExists(fractal))
         error("Bad fractal name: " + fractal);
 
     let param_cx = 0.0;
     let param_cy = 0.0;
-    if (fractal === "julia") {
+    if (fractalHasParam(fractal)) {
         param_cx = parseFloat(form.elements["paramXSlider"].value);
         param_cy = parseFloat(form.elements["paramYSlider"].value);
     }
@@ -320,7 +320,7 @@ function updateFormFromParams()
 
 function setFractalParamVisibility(fractal)
 {
-    let disabled = fractal === "mandelbrot";
+    let disabled = !fractalHasParam(fractal);
     let form = document.forms[0];
     form.elements["paramXSlider"].disabled = disabled;
     form.elements["paramYSlider"].disabled = disabled;
@@ -364,7 +364,7 @@ function maybeSetParamsFromQueryString()
     }
 
     let f = parseElement("f");
-    if (f !== "mandelbrot" && f !== "julia") {
+    if (!fractalExists(f)) {
         alert("Unknown fractal: " + f);
         return;
     }
@@ -375,7 +375,7 @@ function maybeSetParamsFromQueryString()
     let i = parseElement("i", parseInt);
     let p = 0.0;
     let q = 0.0;
-    if (f === "julia") {
+    if (fractalHasParam(f)) {
         p = parseElement("p", parseFloat);
         q = parseElement("q", parseFloat);
     }
@@ -417,7 +417,7 @@ function queryStringFromParams()
     add("y", params.coords.centre_cy);
     add("h", params.coords.size_cy);
     add("i", params.maxIterations);
-    if (params.fractal.name === "julia") {
+    if (fractalHasParam(params.fractal.name)) {
         add("p", params.fractal.param_cx);
         add("q", params.fractal.param_cy);
     }

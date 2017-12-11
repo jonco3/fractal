@@ -1,13 +1,35 @@
+/*-*- Mode: JS; tab-width: 4 -*-*/
+
+const fractals = {
+    mandelbrot: {
+        func: mandelbrot,
+        hasParam: false
+    },
+    julia: {
+        func: julia,
+        hasParam: true
+    },
+    testRects: {
+        func: testRects,
+        hasParam: false
+    }
+};
+
+function fractalExists(name) {
+    return fractals.hasOwnProperty(name);
+}
+
+function fractalHasParam(name) {
+    return fractals[name].hasParam;
+}
+
 function getIterationFunc()
 {
-    switch (params.fractal.name) {
-    case "mandelbrot":
-        return mandelbrot;
-    case "julia":
-        return julia;
-    default:
-        error("Unknown kind: " + params.fractal.name);
-    }
+    let name = params.fractal.name;
+    if (!fractalExists(name))
+        error("Unknown fractal kind: " + name);
+    
+    return fractals[name].func;
 }
 
 function mandelbrot(cx, cy)
@@ -50,4 +72,12 @@ function julia(cx, cy)
     }
 
     return 0;
+}
+
+function testRects(cx, cy)
+{
+    if (typeof workerColour === "undefined")
+        workerColour = Math.floor(Math.random() * 254) + 1;
+
+    return workerColour;
 }

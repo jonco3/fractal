@@ -136,7 +136,7 @@ function listenForPopStateEvents()
         params = event.state;
         updateFormFromParams();
         updateCoordsScale();
-        runPlotter();
+        plotWholeImage();
     });
 }
 
@@ -175,7 +175,7 @@ function listenForUpdateClickEvents()
     button.addEventListener("click", (event) => {
         setParamsFromForm();
         updateHistoryState();
-        runPlotter();
+        plotWholeImage();
     });
 }
 
@@ -462,7 +462,7 @@ function resizeCanvas()
     params.image.height = canvas.height;
 
     updateCoordsScale();
-    runPlotter();
+    plotWholeImage();
 }
 
 function setComplexCoords(centre_cx, centre_cy, size_cy)
@@ -503,14 +503,14 @@ function zoomAt(px, py)
                      complexCoordForPixelY(py),
                      params.coords.size_cy / 2);
     updateHistoryState();
-    runPlotter();
+    plotWholeImage();
 }
 
 function moveBy(ox, oy)
 {
     addMessage(`moveBy ${ox} ${oy} ${canvasScale}`);
 
-    // todo: Does this actually copy the data?  Can we just move the existing
+    // TODO: Does this actually copy the data?  Can we just move the existing
     // data in-place?
     let context = canvas.getContext('2d');
     let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -518,22 +518,24 @@ function moveBy(ox, oy)
                          Math.round(ox * canvasScale),
                          Math.round(oy * canvasScale));
 
-    let pw = canvas.width / canvasScale;
-    let ph = canvas.height / canvasScale;
+    let pw = canvas.width;
+    let ph = canvas.height;
 
-    context.fillStyle = "white";
+    let region = [];
+
+    ox = Math.round(ox * canvasScale);
+    oy = Math.round(oy * canvasScale);
+
+    // TODO: There is overlap at the corners.
     if (ox > 0)
-        context.fillRect(0, 0, ox, ph);
+        region.push([0, 0, ox, ph]);
     else if (ox < 0)
-        context.fillRect(pw + ox, 0, -ox, ph);
+        region.push([pw + ox, 0, pw, ph]);
 
     if (oy > 0)
-        context.fillRect(0, 0, pw, oy);
+        region.push([0, 0, pw, oy]);
     else if (oy < 0)
-        context.fillRect(0, ph + oy, pw, -oy);
-
-    ox = Math.round(ox * canvasScale),
-    oy = Math.round(oy * canvasScale)
+        region.push([0, ph + oy, pw, ph]);
 
     let px = Math.floor(canvas.width / 2) - ox;
     let py = Math.floor(canvas.height / 2) - oy;
@@ -541,13 +543,25 @@ function moveBy(ox, oy)
                      complexCoordForPixelY(py),
                      params.coords.size_cy);
     updateHistoryState();
-    runPlotter();
+
+    context.fillStyle = "white";
+    for (let [x0, y0, x1, y1] of region)
+        context.fillRect(x0 / canvasScale, y0 / canvasScale,
+                         (x1 - x0) / canvasScale, (y1 - y0) / canvasScale);
+
+    plotRegion(region);
 }
 
-function runPlotter()
+function plotWholeImage()
+{
+    let region = [ [0, 0, params.image.width, params.image.height] ];
+    plotRegion(region);
+}
+
+function plotRegion(region)
 {
     clearMessages();
-    plotImage(canvas, setStatusStarted, setStatusFinished);
+    startPlotRegion(canvas, region, setStatusStarted, setStatusFinished);
 }
 
 function setStatusStarted(phase)

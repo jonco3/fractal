@@ -13,6 +13,7 @@ let plotterPhase;
 let startTime;
 let totalPixels;
 
+let dirtyRegion;
 let regionQueue = [];
 
 let plotterStats = null;
@@ -120,61 +121,75 @@ function maybeCancelWorkers()
     createWorkers();
 }
 
-function plotImage(canvas, startCallback, endCallback)
+function startPlotRegion(canvas, region, startCallback, endCallback)
 {
     plotterCanvas = canvas;
     plotterStartCallback = startCallback;
     plotterEndCallback = endCallback;
 
+    dirtyRegion = region;
+    tileDirtyRegion();
+
     maybeCancelWorkers();
     colourMap = buildColourMap(params.colours);
-    doPlotImage("main");
+    startPlotPhase("main");
 }
 
-function doPlotImage(phase)
+function startPlotPhase(phase)
 {
+    // TODO: start antialiasing as soon we have idle workers after main image
+    // plotted.
+    assert(regionQueue.length === 0, "Expected empty region queue");
+    assert(busyWorkers.length === 0, "Expected no busy workers");
+
     plotterPhase = phase;
     plotterStartCallback(phase);
     startTime = performance.now();
     plotterStats = null;
-    tileImage();
+    regionQueue = dirtyRegion.slice();
     dispatchWorkers();
 }
 
-function tileImage()
+function tileDirtyRegion()
 {
-    // Break up the image into (mostly) square tiles and queue the regions to be
-    // plotted.
+    // Break up the dirty region up into (mostly) square tiles and queue the
+    // regions to be plotted.
 
     const minTileSidePixels = 100;
     const maxTilesPerSide = 4;
 
-    let pw = params.image.width;
-    let ph = params.image.height;
+    let region = dirtyRegion;
+    dirtyRegion = [];
 
-    // Calculate number of tiles per side.
-    let pm = Math.min(pw, ph);
-    let tps = Math.floor(pm / minTileSidePixels);
-    tps = Math.max(tps, 1);
-    tps = Math.min(tps, maxTilesPerSide);
+    for (let [rx0, ry0, rx1, ry1] of region) {
+        assert(rx1 > rx0 && ry1 > ry0, "Bad region");
 
-    // Calculate tile size.
-    let ts = Math.floor(pm / tps);
-    let nx = Math.floor(pw / ts);
-    let ny = Math.floor(ph / ts);
+        let pw = rx1 - rx0;
+        let ph = ry1 - ry0;
 
-    assert(regionQueue.length === 0, "Region queue should be empty");
-    for (let sy = 0; sy < ny; sy++) {
-        let y0 = sy * ts;
-        let y1 = (sy + 1) * ts;
-        if (sy === ny - 1)
-            y1 = ph;
-        for (let sx = 0; sx < nx; sx++) {
-            let x0 = sx * ts;
-            let x1 = (sx + 1) * ts;
-            if (sx === nx - 1)
-                x1 = pw;
-            regionQueue.push([x0, y0, x1, y1]);
+        // Calculate number of tiles per side.
+        let pm = Math.min(pw, ph);
+        let tps = Math.floor(pm / minTileSidePixels);
+        tps = Math.max(tps, 1);
+        tps = Math.min(tps, maxTilesPerSide);
+
+        // Calculate tile size.
+        let ts = Math.floor(pm / tps);
+        let nx = Math.floor(pw / ts);
+        let ny = Math.floor(ph / ts);
+
+        for (let sy = 0; sy < ny; sy++) {
+            let y0 = sy * ts;
+            let y1 = (sy + 1) * ts;
+            if (sy === ny - 1)
+                y1 = ph;
+            for (let sx = 0; sx < nx; sx++) {
+                let x0 = sx * ts;
+                let x1 = (sx + 1) * ts;
+                if (sx === nx - 1)
+                    x1 = pw;
+                dirtyRegion.push([x0 + rx0, y0 + ry0, x1 + rx0, y1 + ry0]);
+            }
         }
     }
 }
@@ -217,9 +232,9 @@ function plotRegionFinished(region, buffer, stats)
         if (plotterPhase !== "antialias") {
             if (shouldIncreaseIterations(plotterStats)) {
                 params.maxIterations *= 2;
-                doPlotImage("increaseIterations");
+                startPlotPhase("increaseIterations");
             } else if (params.antialias) {
-                doPlotImage("antialias");
+                startPlotPhase("antialias");
             }
         } else {
             plotterCanvas = null;
